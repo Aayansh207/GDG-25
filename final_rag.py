@@ -3,6 +3,9 @@ Semantic Chunking + Embedding + Pinecone Upload + Retrieval + Rerank + Gemini An
 """
 #Google API_KEy and Pinecone API_KEY are required to run this code , they should be stored in .env file
 #update this file to store the comments of what each function is doing
+
+#ONLY CALL MASTER FUNCTION #ONLY CALL MASTER FUNCTION  #ONLY CALL MASTER FUNCTION  #ONLY CALL MASTER FUNCTION  #ONLY CALL MASTER FUNCTION  #ONLY CALL MASTER FUNCTION #ONLY CALL MASTER FUNCTION 
+
 # ===================== IMPORTS =====================
 import os
 import nltk
@@ -54,7 +57,7 @@ class FullRAGSystem:
         return [query]  # placeholder, intentional
 
     # ===================== SEMANTIC CHUNKING =====================
-    #split text into semantically coherent chunks(it doesn't just split by size but also by meaning)
+    """split text into semantically coherent chunks(it doesn't just split by size but also by meaning)"""
     def semantic_chunk( 
         self,
         text: str,
@@ -102,7 +105,7 @@ class FullRAGSystem:
         return chunks
 
     # ===================== EMBEDDING =====================
-    # Get embedding vector for a given text chunks
+    """Get embedding vector for a given text chunks"""
     def embedding(self, text: str) -> list[float]:
         vec = self.embed_model.encode(
             text,
@@ -112,7 +115,7 @@ class FullRAGSystem:
         return vec.tolist()
 
     # ===================== PINECONE UPLOAD =====================
-    # Upload raw text to Pinecone after chunking and embedding , chunking and embedding function is called here
+    """Upload raw text to Pinecone after chunking and embedding , chunking and embedding function is called here"""
     def upload_raw_text(self, raw_text: str, doc_id: str):
 
         chunks = self.semantic_chunk(raw_text)
@@ -140,54 +143,66 @@ class FullRAGSystem:
         print(f"[UPLOAD] Uploaded {len(vectors)} chunks for doc_id={doc_id}")
 
     # ===================== RETRIEVAL =====================
-    # Retrieve candidate chunks from Pinecone based on the query
+    """Retrieve candidate chunks from Pinecone based on the query"""
     def retrieve_candidates_from_pinecone(
-        self, query: str, k: int = 20
+        self, query: str, doc_id: str, k: int = 20, all: bool = False
     ) -> list[dict]:
 
         candidates = {}
 
         for q in self.expand_query(query): # expand query function is called here , enhances the query for better retrieval
             q_vec = self.embedding(q) # embedding function is called here to get vector of the query
-            res = self.index.query(  # query function is called here to get relevant chunks from pinecone
-                vector=q_vec, top_k=k, include_metadata=True ,
-            )
 
-            for match in res.matches: # iterate through the matches found in the query
+            if all: #(MAIN)- check for global search across all documents
+                res = self.index.query( #query is in-built pinecone function to get relevant chunks from pinecone
+                    vector=q_vec,
+                    top_k=k,
+                    include_metadata=True
+                )
+            else: #check for document-specific search
+                res = self.index.query(
+                    vector=q_vec,
+                    top_k=k,
+                    filter={"doc_id": {"$eq": doc_id}}, #filtering by doc_id
+                    include_metadata=True
+                )
+
+            for match in res.matches: 
                 text = match.metadata.get("text")
-                if not text: # if no text is found, skip this match
+                if not text:
                     continue
 
                 candidates[text] = { # store candidate chunk details in a dictionary
                     "text": text,
-                    "pinecone_score": float(match.score), #get the pinecone score of the match
-                    "doc_id": match.metadata.get("doc_id"), #get the document id of the match
-                    "chunk_index": match.metadata.get("chunk_index"), #get the chunk index of the match
+                    "pinecone_score": float(match.score),
+                    "doc_id": match.metadata.get("doc_id"),
+                    "chunk_index": match.metadata.get("chunk_index"),
                 }
 
         return list(candidates.values())
 
     # ===================== RERANK =====================
-    def rerank_candidates( #after retrieval, rerank the candidates based on relevance to the query
+    """#after retrieval, rerank the candidates based on relevance to the query"""
+    def rerank_candidates(
         self, query: str, candidates: list, top_n: int = 5
-    ) -> list:
+    ) -> list: 
 
         if not candidates:
             return []
 
-        pairs = [[query, c["text"]] for c in candidates] # create pairs of (query, candidate text) for reranking
+        pairs = [[query, c["text"]] for c in candidates]
         scores = self.reranker.predict(pairs)
 
         for c, s in zip(candidates, scores):
             c["rerank_score"] = float(s)
 
-        candidates.sort(key=lambda x: x["rerank_score"], reverse=True) # sort candidates by rerank score descending
+        candidates.sort(key=lambda x: x["rerank_score"], reverse=True)
         return candidates[:top_n]
 
     # ===================== SEARCH =====================
-    # main search function that combines retrieval and reranking
-    def semantic_search_pinecone(self, query: str, k: int = 20) -> list: 
-        candidates = self.retrieve_candidates_from_pinecone(query, k)
+    """main search function that combines retrieval and reranking"""
+    def semantic_search_pinecone(self, query: str, doc_id: str, k: int = 20, all: bool = False):
+        candidates = self.retrieve_candidates_from_pinecone(query, doc_id, k, all)
         return self.rerank_candidates(query, candidates)
 
     # ===================== ANSWER GENERATION =====================
@@ -222,40 +237,101 @@ QUESTION:
             print("[LLM ERROR]", e)
             return "There was an error generating the answer."
 
-
-    #SOME PINECONE DATABASE MANAGEMENT FUNCTIONS
+    """SOME PINECONE DATABASE MANAGEMENT FUNCTIONS"""
     # ===================== DELETE ALL =====================
     def delete_all(self):
         self.index.delete(delete_all=True)
-        print("🔥 Deleted ALL vectors from the index")
+        print("Deleted ALL vectors from the index")
 
     # ===================== DELETE DOCUMENT =====================
     def delete_document(self, doc_id): #Run reindex_document to update the index
         self.index.delete(
-            filter={"doc_id": {"$eq": doc_id}},
-            namespace=self.namespace,
+            filter={"doc_id": {"$eq": doc_id}}
         )
-        print(f"🗑️ Deleted document: {doc_id}")
+        print(f"Deleted document: {doc_id}")
 
     # ===================== REINDEX DOCUMENT =====================
-    def reindex_document(self, raw_text, doc_id, new_version):
+    def reindex_document(self, raw_text, doc_id):
         self.delete_document(doc_id)
-        self.upload_document(raw_text, doc_id, version=new_version)
-        print(f"♻️ Reindexed {doc_id} → version {new_version}")
+        self.upload_raw_text(raw_text, doc_id)
+        print(f"Reindexed document: {doc_id}")
+
+    # ===================== MASTER FUNCTION =====================
+    """if RAW file is empy no need to upload PineconeDB just search and generate answer
+    if RAW file is present upload it to PineconeDB and then search and generate answer
+    Also check do the user only wants to ingest the document without querying """
+    def MasterFunction(self, RAWfile: str | None, query: str | None, doc_id: str, all: bool = False):
+        """
+        End-to-end RAG pipeline for a single document.
+        """
+
+        if RAWfile:
+            self.index.delete(
+                filter={"doc_id": {"$eq": doc_id}}
+            )
+            self.upload_raw_text(RAWfile, doc_id=doc_id)
+
+        if not query:
+            return "No query provided."
+
+        candidates = self.retrieve_candidates_from_pinecone(
+            query=query,
+            doc_id=doc_id,
+            k=20,
+            all=all
+        )
+
+        if not candidates:
+            if all:
+                return "No data found across all documents."
+            return f"No data found for document: {doc_id}"
+
+        #  Rerank
+        top_chunks = self.rerank_candidates(
+            query=query,
+            candidates=candidates,
+            top_n=5
+        )
+
+        # Generate answer
+        answer = self.generate_answer(query, top_chunks)
+        return answer
 
 
 # ===================== USAGE =====================
 if __name__ == "__main__":
 
+    #NOW TIME FOR IMPLEMENTATION
     rag = FullRAGSystem()
-    #rag.delete_all() #, RUN THIS CODE TO DELETE ALL VECTORS IN PINECONE INDEX
+    
+    docs = {
+        "ai_doc": open("ai.txt").read(),
+        "history_doc": open("history.txt").read(),
+        "bio_doc": open("bio.txt").read(),
+    }
 
-    with open("googl.txt", "r", encoding="utf-8") as f:
-        rag.upload_raw_text(f.read(), doc_id="doc1")
+    # Ingest once
+    for doc_id, text in docs.items():
+        print(
+            rag.MasterFunction(
+                RAWfile=text,
+                query=None,
+                doc_id=doc_id #DOC ID IS NECESSARY FOR UPLOADING
+            )
+        )
 
-    query = "What is Recursion in programming?"
+    # Now ONLY query
+    queries = [
+        ("ai_doc", "What is Machine Learning?"),
+        ("bio_doc", "What is photosynthesis?"),
+        ("history_doc", "When did the French Revolution begin?")
+    ]
 
-    chunks = rag.semantic_search_pinecone(query)
-    answer = rag.generate_answer(query, chunks)
-
-    print("\nANSWER:\n", answer)
+    for doc_id, q in queries:
+        ans = rag.MasterFunction(
+            RAWfile=None,
+            query=q,
+            doc_id=doc_id, #put doc_id anything if all = true , i.e.,  to search globally
+            all=False   # default behavior
+        )
+        print(f"\n[{doc_id}] {q}\n{ans}")
