@@ -136,6 +136,8 @@ celerybeat.pid
 *.aof
 *.pid
 **/*.env
+**/*.db
+**/PrimaryDB.db
 
 # RabbitMQ
 mnesia/
