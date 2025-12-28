@@ -7,7 +7,6 @@
 import pymupdf
 import os
 import easyocr
-import torch
 import sqlite3
 import re
 import prompts
@@ -16,11 +15,9 @@ from google import genai
 from pathlib import Path
 from datetime import date
 from dotenv import load_dotenv
-from nltk.tokenize import sent_tokenize
-from sentence_transformers import SentenceTransformer
-
 
 # Main Classes #
+
 
 class GenerationModel:
     """Class that handles the initialization of the gemini api client."""
@@ -56,8 +53,6 @@ class FileHandler:
         )
         self.connection.commit()
         self.connection.close()
-
-        self.embed_model = SentenceTransformer("all-MiniLM-L6-v2")
 
     def extract_PDF_text(self, filePath: str) -> str:
         """Function responsible for extracting the text from PDF files."""
@@ -104,7 +99,6 @@ class FileHandler:
 
         else:
             self.text = self.image_OCR(file)
-
 
         # Initiating database connection
         self.connection = sqlite3.connect("PrimaryDB.db")
@@ -179,14 +173,13 @@ class FileHandler:
         files: list[str] | None,
         user_id: str | None,
         addFiles: bool = True,
-        getFiles: bool = False,
     ):
         """This functions brings together the functionality of both addFiles and getFiles function."""
 
         if addFiles:
             self.extracted_content = {}
             for file in files:
-                self.extracted_content.update(self.addFiles(file))
+                self.extracted_content.update(self.addFiles(file=file, user_id=user_id))
 
             return self.extracted_content
 
@@ -209,7 +202,6 @@ class FileHandler:
         self.comparison = self.compareAndSummarize(
             docs_summaries_compare=docs_summaries,
             doc_text=None,
-            compare=True,
             summarize=False,
         )
 
@@ -220,33 +212,16 @@ class FileHandler:
         docs_summaries_compare: list[str] | None,
         doc_text: str | None,
         summarize: bool = True,
-        compare: bool = False,
     ):
         """Behind the scenes logic for summary and comparison generation."""
 
         if summarize:
             """Summarization logic."""
 
-            chunks = self.semantic_chunk(
-                text=doc_text
-            )  # The raw text is broken into smaller chunks to prevent token exhaustion in case of bigger documents.
-            chunk_summaries = []
-
-            for chunk in chunks:
-                """Generating short summary for each indivisual chunk"""
-
-                chunk_summary = self.model.client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=(prompts.prompt_chunk_summary + "\n\n" + chunk),
-                )
-                chunk_summaries.append(
-                    chunk_summary.text
-                )  # appending all generated summaries for indivisual chunks into one list.
-
             # generating the main summary
             summary = self.model.client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents=prompts.prompt_summary + "\n\n".join(chunk_summaries),
+                contents=prompts.prompt_summary_new + "\n\n" + doc_text,
             )
             return summary.text  # returning the summary text
 
@@ -260,62 +235,20 @@ class FileHandler:
             )
             return comparison.text
 
-    def semantic_chunk(
-        self,
-        text: str,
-        max_tokens: int = 1800,
-        similarity_threshold: float = 0.18,
-    ) -> list[str]:
-        """Function responsible for semantic chunking of the raw extracted text. (Taken from final_rag.py)"""
-
-        sentences = sent_tokenize(text)
-        if not sentences:
-            return []
-
-        chunks = []
-        current_chunk = []
-        current_embeddings = []
-        current_tokens = 0
-
-        for sent in sentences:
-            sent_tokens = int(len(sent.split()) * 1.3)  # better token estimate
-            sent_emb = torch.tensor(
-                self.embed_model.encode(sent, normalize_embeddings=True)
-            )
-
-            if not current_chunk:
-                current_chunk.append(sent)
-                current_embeddings.append(sent_emb)
-                current_tokens = sent_tokens
-                continue
-
-            chunk_mean = torch.stack(current_embeddings).mean(dim=0)
-            sim = torch.nn.functional.cosine_similarity(
-                sent_emb, chunk_mean, dim=0
-            ).item()
-
-            if sim < similarity_threshold or current_tokens + sent_tokens > max_tokens:
-                chunks.append(" ".join(current_chunk))
-                current_chunk = [sent]
-                current_embeddings = [sent_emb]
-                current_tokens = sent_tokens
-            else:
-                current_chunk.append(sent)
-                current_embeddings.append(sent_emb)
-                current_tokens += sent_tokens
-
-        if current_chunk:
-            chunks.append(" ".join(current_chunk))
-
-        return chunks  # returns the generated chunks
-
 
 # Testing
 
 if __name__ == "__main__":
 
+    import time
+
+    start1 = time.time()
     handler = FileHandler()
+    end1 = time.time()
+    print("elapsed 1:", end1 - start1)
     summary = handler.compareAndSummarize(
-        docs_summaries_compare=None, doc_text=handler.extract_PDF_text(filePath="1.pdf")
+        docs_summaries_compare=None, doc_text=handler.extract_PDF_text(filePath="")
     )
     print(summary)
+    ed2 = time.time()
+    print("final elapsed ", ed2 - start1)

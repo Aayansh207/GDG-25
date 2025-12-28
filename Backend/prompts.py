@@ -27,10 +27,12 @@ Output format:
 Document chunk:
 """
 
-prompt_summary = """You are provided with multiple summaries, each corresponding to different sections of the same source document.
+prompt_summary_new = """Prompt:
+
+You are provided with the complete content of a single source document.
 
 Task
-Synthesize these summaries into a single, unified final summary that accurately represents the entire document as a coherent whole.
+Produce a single, unified summary that accurately represents the entire document as a coherent whole.
 
 Strict rules (must follow exactly):
 
@@ -44,7 +46,7 @@ Do NOT repeat the same information unless necessary for clarity
 
 Do NOT add interpretations, opinions, assumptions, or external context
 
-Do NOT reference or mention section summaries or the summarization process
+Do NOT reference the document structure, sections, or the summarization process
 
 Content requirements:
 
@@ -74,16 +76,15 @@ Do NOT use code blocks
 
 Length constraint:
 
-Target total length: 180–500 words depending on the length and number of the indivisual summaries.
+Target total length: 180–500 words depending on the document length
 
 Keep the summary concise and information-dense
 
 Input:
-Multiple section summaries from the same document
+Complete document content
 
 Output:
-A single, unified HTML-formatted final summary following all rules above:
-
+A single, unified HTML-formatted summary following all rules above.
 """
 
 prompt_comparison = """
