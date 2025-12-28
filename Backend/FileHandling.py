@@ -80,63 +80,82 @@ class FileHandler:
         return text
     
 
-    def addFiles(self, files:list[str], user_id:str) -> dict:
+    def addFiles(self, file:str, user_id:str) -> dict:
         
         extracted_content = {}
 
-        for file in files:
-
-            if file.lower().endswith(".pdf"):
-                self.text = self.extract_PDF_text(file)
+        if file.lower().endswith(".pdf"):
+            self.text = self.extract_PDF_text(file)
+        
+        elif file.lower().endswith(".txt"):
             
-            elif file.lower().endswith(".txt"):
-                
-                with open(file, "rt",encoding="utf-8", errors="ignore") as f:
-                    return f.read()
+            with open(file, "rt",encoding="utf-8", errors="ignore") as f:
+                return f.read()
 
-            else:
-                self.text = self.image_OCR(file)
+        else:
+            self.text = self.image_OCR(file)
 
-            self.connection = sqlite3.connect("PrimaryDB.db")
-            self.cursor = self.connection.cursor()
-            self.cursor.execute("SELECT COUNT(*) FROM primary")
+        self.connection = sqlite3.connect("PrimaryDB.db")
+        self.cursor = self.connection.cursor()
+        self.cursor.execute("SELECT COUNT(*) FROM primary")
 
-            total_entries = self.cursor.fetchone()[0]
-            index = "DOC_" + "0"*(3-len(str((total_entries+1)))) + str(total_entries+1)
+        total_entries = self.cursor.fetchone()[0]
+        index = "DOC_" + "0"*(3-len(str((total_entries+1)))) + str(total_entries+1)
 
-            self.cursor.execute(f"INSERT INTO primary VALUES ('{index}', '{user_id}', '{os.path.basename(file)}', '{date.today()}', '{self.summary}')")
-            self.connection.commit() 
-            self.connection.close()
+        self.cursor.execute(f"INSERT INTO primary VALUES ('{index}', '{user_id}', '{os.path.basename(file)}', '{date.today()}', '{self.summary}')")
+        self.connection.commit() 
+        self.connection.close()
 
-            extracted_content.update({index : {"index":index, "text" : self.text, "filename": os.path.basename(file), "summary":self.summary}})
+        extracted_content.update({index : {"index":index, "filename": os.path.basename(file), "upload_date": date.today(), "text" : self.text, "summary":self.summary}})
 
 
         return extracted_content
 
 
-    def getFiles(self, doc_ids:list[str]) -> dict:
+    def getFiles(self, doc_id:str) -> dict:
 
         retrieved_content = {}
 
-        for doc_id in doc_ids:
-            self.connection = sqlite3.connect("Database/PrimaryDB.db")
-            self.cursor = self.connection.cursor()
-            self.cursor.execute(f"SELECT * FROM primary WHERE doc_id = {doc_id}")
-            self.retrieved_content = self.cursor.fetchall()
-            self.connection.close()
 
-            if self.retrieved_content != []:
+        self.connection = sqlite3.connect("Database/PrimaryDB.db")
+        self.cursor = self.connection.cursor()
+        self.cursor.execute(f"SELECT * FROM primary WHERE doc_id = {doc_id}")
+        retrieved_data= self.cursor.fetchall()
+        self.connection.close()
 
-                retrieved_content.update({
-                    doc_id:{
-                    "index": self.retrieved_content[1],
-                    "user_id": self.retrieved_content[2],
-                    "filename": self.retrieved_content[3],
-                    "upload_date": self.retrieved_content[4],
-                    "summary":self.retrieved_content[5]
-                }})
+        if retrieved_data != []:
+
+            retrieved_content.update({
+                doc_id:{
+                "index": retrieved_data[1],
+                "user_id": retrieved_data[2],
+                "filename": retrieved_data[3],
+                "upload_date": retrieved_data[4],
+                "summary":retrieved_data[5]
+            }})
         
         return retrieved_content
 
-    def handleFiles(self, addFiles:bool = True, getFiles:bool = False):
+
+    def handleFiles(self, doc_ids: list[str] | None, files:list[str] | None, user_id:str | None, addFiles:bool = True, getFiles:bool = False):  
+        
+        if addFiles:
+
+            self.extracted_content = {}
+            for file in files:
+                self.extracted_content.update(addFiles(file))
+            
+            return self.extracted_content
+        
+        self.retrieved_content = {}
+        for doc_id in doc_ids:
+
+            self.retrieved_content.update(getFiles(doc_id))
+        
+        return self.retrieved_content             
+
+
+    def compareDocs(self, doc_ids:list[str]) ->str:
+        
+
         ...
