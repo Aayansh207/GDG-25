@@ -147,3 +147,35 @@ async def get_analysis():
         return {"total_documents": total, "time_saved": total * 0.5} # Mock logic
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@app.get("/search")
+async def global_search(query: str, top_k: int = 15):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT doc_id, filename FROM primarydb")
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            return {"results": []}
+
+        all_ids = [row[0] for row in rows]
+        answer = rag_system.search(query=query, allowed_doc_ids=all_ids)
+        
+        # If no answer is found, return an empty list so the frontend shows "No content found"
+        if "No relevant documents found" in answer:
+            return {"results": []}
+
+        return {
+            "results": [
+                {
+                    "id": all_ids[-1], # Use the most recent ID for the button link
+                    "filename": "Cross-Document AI Analysis",
+                    "score": 0.95,
+                    "snippet": answer
+                }
+            ]
+        }
+    except Exception as e:
+        print(f"Search Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
