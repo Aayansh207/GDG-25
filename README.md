@@ -77,6 +77,7 @@ Gemini Answer Generation (context-only)
 - Python 3.9+
 - Active Pinecone account
 - Google Generative AI API access
+<<<<<<< HEAD
 
 ### Install Dependencies
 
@@ -118,3 +119,5 @@ queries = [
     ("bio_doc", "What is photosynthesis?"),
     ("history_doc", "When did the French Revolution begin?")
 ]
+=======
+>>>>>>> origin/Prateek-backend
