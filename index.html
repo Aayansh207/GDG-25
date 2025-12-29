@@ -165,8 +165,8 @@
   </div>
 
   <!-- ── JAVASCRIPT ──────────────────────────────────────────────────────── -->
-  <script>
-    // ── DOM element references ─────────────────────────────────────────────
+<script>
+    // DOM element references
     const selectBtn    = document.getElementById("select-btn");
     const fileInput    = document.getElementById("file-input");
     const uploadBlock  = document.getElementById("upload-block");
@@ -174,15 +174,10 @@
     const summarizeBtn = document.getElementById("summarize-btn");
     const dropZone     = document.getElementById("drop-zone");
 
-    // ── Core file upload & preprocessing logic ─────────────────────────────
     async function handleFile(file) {
       if (!file) return;
 
-      // Remember file info for later pages (summary, history, etc.)
-      localStorage.setItem("uploadedFileName", file.name);
-      localStorage.setItem("uploadedFileDate", new Date().toLocaleString());
-
-      // UI feedback: hide upload area → show loader
+      // Initial UI updates
       uploadBlock.classList.add("hidden");
       loader.classList.remove("hidden");
       summarizeBtn.classList.add("hidden");
@@ -191,33 +186,41 @@
       formData.append("file", file);
 
       try {
-        // Send file to FastAPI backend for preprocessing (OCR, chunking, embedding, etc.)
         const response = await fetch("http://127.0.0.1:8000/preprocess", {
           method: "POST",
           body: formData
         });
 
-        if (!response.ok) throw new Error("Backend error: " + response.status);
+        // Check if the response is valid
+        if (!response.ok) {
+            const errorText = await response.text(); 
+            throw new Error(errorText || `Server error: ${response.status}`);
+        }
 
-        await response.json();
+        // consume the body ONCE
+        const result = await response.json(); 
 
-        // Success → hide loader, show "Summarize Now" button
+        // Store data for subsequent pages
+        localStorage.setItem("currentDocId", result.doc_id);
+        localStorage.setItem("uploadedFileName", file.name);
+        localStorage.setItem("uploadedFileDate", new Date().toLocaleString());
+
+        // Update UI on success
         loader.classList.add("hidden");
         summarizeBtn.classList.remove("hidden");
 
       } catch (err) {
-        console.error(err);
+        console.error("Upload failed:", err);
         loader.classList.add("hidden");
         uploadBlock.classList.remove("hidden");
         alert("Upload failed: " + err.message);
       }
     }
 
-    // ── Event listeners for file selection / drag & drop ───────────────────
+    // Event listeners
     selectBtn.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", e => handleFile(e.target.files[0]));
 
-    // Drag & drop visual feedback + handling
     dropZone.addEventListener("dragover", e => {
       e.preventDefault();
       dropZone.classList.add("border-white");
@@ -229,34 +232,30 @@
       handleFile(e.dataTransfer.files[0]);
     });
 
-    // After preprocessing → go to summary page
     summarizeBtn.addEventListener("click", () => {
-      window.location.href = "summary.html";
+      // Navigate with ID in URL for robust loading
+      const docId = localStorage.getItem("currentDocId");
+      window.location.href = `summary.html?id=${docId}`;
     });
 
-    // ── Load dashboard statistics from backend ─────────────────────────────
     async function loadStats() {
       try {
         const res = await fetch("http://127.0.0.1:8000/analysis");
         if (!res.ok) throw new Error();
         const data = await res.json();
-
         document.getElementById("total-docs").textContent = data.total_documents || "0";
-        // time_saved can be calculated in backend or hardcoded for now
-        document.getElementById("time-saved").textContent = data.time_saved || "42";
+        document.getElementById("time-saved").textContent = (data.time_saved || "0") + " hrs";
       } catch {
-        document.getElementById("total-docs").textContent = "Error";
-        document.getElementById("time-saved").textContent = "Error";
+        document.getElementById("total-docs").textContent = "0";
+        document.getElementById("time-saved").textContent = "0 hrs";
       }
     }
     loadStats();
 
-    // ── Semantic search form submission ────────────────────────────────────
     document.getElementById("search-form").addEventListener("submit", e => {
       e.preventDefault();
       const query = document.getElementById("search-input").value.trim();
       if (query) {
-        // Open full-search page in new tab with query in URL
         window.open(`full-search.html?query=${encodeURIComponent(query)}`, "_blank");
       }
     });
