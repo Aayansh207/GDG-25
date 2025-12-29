@@ -120,7 +120,7 @@ class FileHandler:
                 index,
                 user_id,
                 os.path.basename(file),
-                date.today(),
+                str(date.today()),
                 self.summary
             )
         )
@@ -133,7 +133,7 @@ class FileHandler:
                 index: {
                     "index": index,
                     "filename": os.path.basename(file),
-                    "upload_date": date.today(),
+                    "upload_date": str(date.today()),
                     "text": self.text,
                     "summary": self.summary,
                 }
