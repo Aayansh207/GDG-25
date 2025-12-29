@@ -43,7 +43,6 @@ class FileHandler:
         self.cursor = self.connection.cursor()
         self.cursor.execute(
             """CREATE TABLE IF NOT EXISTS primarydb (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                             doc_id TEXT UNIQUE NOT NULL,
                             user_id TEXT NOT NULL,
                             filename TEXT NOT NULL,
@@ -101,7 +100,7 @@ class FileHandler:
             self.text = self.image_OCR(file)
 
         # Initiating database connection
-        self.connection = sqlite3.connect("PrimaryDB.db")
+        self.connection = sqlite3.connect("Database/PrimaryDB.db")
         self.cursor = self.connection.cursor()
         self.cursor.execute("SELECT COUNT(*) FROM primarydb")
 
@@ -118,7 +117,17 @@ class FileHandler:
 
         # Inserting the content into the database.
         self.cursor.execute(
-            f"INSERT INTO primarydb VALUES ('{index}', '{user_id}', '{os.path.basename(file)}', '{date.today()}', '{self.summary}')"
+            """
+            INSERT INTO primarydb
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                index,
+                user_id,
+                os.path.basename(file),
+                date.today(),
+                self.summary
+            )
         )
 
         self.connection.commit()
@@ -151,16 +160,16 @@ class FileHandler:
         self.cursor.execute(f"SELECT * FROM primarydb WHERE doc_id = {doc_id}")
         retrieved_data = self.cursor.fetchall()
         self.connection.close()
-
+        print(len(retrieved_data[0]))
         if retrieved_data != []:
             retrieved_content.update(
                 {
                     doc_id: {
-                        "index": retrieved_data[1],
-                        "user_id": retrieved_data[2],
-                        "filename": retrieved_data[3],
-                        "upload_date": retrieved_data[4],
-                        "summary": retrieved_data[5],
+                        "index": retrieved_data[0][0],
+                        "user_id": retrieved_data[0][1],
+                        "filename": retrieved_data[0][2],
+                        "upload_date": retrieved_data[0][3],
+                        "summary": retrieved_data[0][4],
                     }
                 }
             )
