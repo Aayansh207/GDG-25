@@ -139,7 +139,7 @@
     async function loadSummary() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const docId = urlParams.get('id');
+        let docId = urlParams.get('id') || localStorage.getItem("currentDocId");
 
         let fetchUrl = "http://127.0.0.1:8000/summary"; // latest by default
         if (docId) {

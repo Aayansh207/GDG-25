@@ -101,7 +101,7 @@ class FileHandler:
             self.text = self.image_OCR(file)
 
         # Initiating database connection
-        self.connection = sqlite3.connect("PrimaryDB.db")
+        self.connection = sqlite3.connect("Database/PrimaryDB.db")
         self.cursor = self.connection.cursor()
         self.cursor.execute("SELECT COUNT(*) FROM primarydb")
 
@@ -118,7 +118,8 @@ class FileHandler:
 
         # Inserting the content into the database.
         self.cursor.execute(
-            f"INSERT INTO primarydb VALUES ('{index}', '{user_id}', '{os.path.basename(file)}', '{date.today()}', '{self.summary}')"
+            "INSERT INTO primarydb (doc_id, user_id, filename, date, summary) VALUES (?, ?, ?, ?, ?)",
+            (index, user_id, os.path.basename(file), str(date.today()), self.summary)
         )
 
         self.connection.commit()
@@ -148,7 +149,7 @@ class FileHandler:
         self.cursor = self.connection.cursor()
 
         # retrieving the data
-        self.cursor.execute(f"SELECT * FROM primarydb WHERE doc_id = {doc_id}")
+        self.cursor.execute("SELECT * FROM primarydb WHERE doc_id = ?", (doc_id,))
         retrieved_data = self.cursor.fetchall()
         self.connection.close()
 
@@ -220,7 +221,7 @@ class FileHandler:
 
             # generating the main summary
             summary = self.model.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=prompts.prompt_summary_new + "\n\n" + doc_text,
             )
             return summary.text  # returning the summary text
@@ -229,7 +230,7 @@ class FileHandler:
             """Comparison logic"""
 
             comparison = self.model.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=prompts.prompt_comparison
                 + "\n\n".join(docs_summaries_compare),
             )

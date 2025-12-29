@@ -38,39 +38,40 @@ class SearchRequest(BaseModel):
 
 # --- API ENDPOINTS ---
 
+# Updated main.py snippet for consistency
 @app.post("/preprocess")
 async def preprocess_and_upload(
-    user_id: str = Form("default_user"), # Default if frontend doesn't send it
-    file: UploadFile = File(...) # Frontend sends single 'file' key
+    user_id: str = Form("default_user"),
+    file: UploadFile = File(...)
 ):
-    """
-    Handles file upload: extracts text, saves to SQLite, moves original 
-    to storage named by doc_id, and indexes in Pinecone.
-    """
-    temp_path = os.path.join(STORAGE_DIR, f"temp_{file.filename}")
+    # Ensure directory exists
+    os.makedirs(STORAGE_DIR, exist_ok=True)
+    os.makedirs("Database", exist_ok=True)
+    
+    temp_path = os.path.join(STORAGE_DIR, file.filename)
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
     try:
-        # 1. Process via FileHandler
+        # FileHandler handles the DB and summary
         extracted_data = file_handler.addFiles(temp_path, user_id)
         doc_id = list(extracted_data.keys())[0]
         raw_text = extracted_data[doc_id]["text"]
 
-        # 2. Persist Original File (Rename to doc_id)
-        extension = os.path.splitext(file.filename)[1]
-        permanent_path = os.path.join(STORAGE_DIR, f"{doc_id}{extension}")
-        os.rename(temp_path, permanent_path)
+        # Rename file to doc_id for structured storage
+        ext = os.path.splitext(file.filename)[1]
+        final_path = os.path.join(STORAGE_DIR, f"{doc_id}{ext}")
+        os.rename(temp_path, final_path)
 
-        # 3. Ingest into RAG for Semantic Search
+        # Ingest into Pinecone
         rag_system.ingest_document(raw_text, doc_id)
         
-        return {"filename": file.filename, "doc_id": doc_id, "status": "success"}
-    
+        return {"doc_id": doc_id, "status": "success"}
     except Exception as e:
         if os.path.exists(temp_path): os.remove(temp_path)
+        print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 @app.get("/summary")
 @app.get("/document/{doc_id}")
 async def get_summary(doc_id: Optional[str] = None):
