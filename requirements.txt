@@ -1,0 +1,7 @@
+numpy>=1.23.0
+torch>=2.0.0
+sentence-transformers>=2.2.2
+nltk>=3.8.1
+pinecone-client>=3.0.0
+google-genai>=0.3.0
+python-dotenv>=1.0.0

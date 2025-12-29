@@ -1,0 +1,168 @@
+import os
+import nltk
+import torch
+from sentence_transformers import SentenceTransformer, CrossEncoder
+from nltk.tokenize import sent_tokenize
+from dotenv import load_dotenv
+from pinecone import Pinecone
+from google import genai  # Ensure you ran: pip install google-genai
+
+load_dotenv()
+
+# ===================== NLTK SETUP =====================
+try:
+    nltk.data.find("tokenizers/punkt")
+except LookupError:
+    nltk.download("punkt")
+
+class FullRAGSystem: 
+    def __init__(self, index_name: str | None = None):
+        # 1. Models
+        self.embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+        self.reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
+        # 2. Gemini Setup (Fixed model name to 1.5-flash)
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+        if not google_api_key:
+            raise RuntimeError("GOOGLE_API_KEY missing in .env")
+        self.client = genai.Client(api_key=google_api_key)
+        self.llm_model_id = "gemini-2.5-flash-lite"
+
+        # 3. Pinecone Setup
+        pinecone_key = os.getenv("PINECONE_API_KEY")
+        if not pinecone_key:
+            raise RuntimeError("PINECONE_API_KEY missing in .env")
+        
+        self.pc = Pinecone(api_key=pinecone_key)
+        index_name = index_name or os.getenv("PINECONE_INDEX_NAME", "test")
+        
+        # Ensure index exists or is connected correctly
+        try:
+            self.index = self.pc.Index(index_name)
+        except Exception as e:
+            print(f"Error connecting to Pinecone index: {e}")
+            raise
+
+    def expand_query(self, query: str) -> list[str]:
+        return [query]
+
+    def semantic_chunk(self, text: str, max_tokens: int = 200, overlap_sentences: int = 1, decay: float = 0.7) -> list[str]:
+        sentences = sent_tokenize(text)
+        if not sentences: return []
+
+        sent_embeddings = self.embed_model.encode(sentences, normalize_embeddings=True)
+        sims = []
+        for i in range(1, len(sent_embeddings)):
+            sim = torch.nn.functional.cosine_similarity(
+                torch.tensor(sent_embeddings[i]),
+                torch.tensor(sent_embeddings[i - 1]),
+                dim=0
+            ).item()
+            sims.append(sim)
+
+        threshold = max(0.1, min(0.4, (sum(sims)/len(sims)) - 0.5 * 0.1)) if sims else 0.2
+
+        chunks, current_chunk, current_tokens, centroid = [], [], 0, None
+
+        for sent, sent_emb in zip(sentences, sent_embeddings):
+            sent_tokens = len(sent.split())
+            sent_emb = torch.tensor(sent_emb)
+
+            if centroid is None:
+                centroid, current_chunk, current_tokens = sent_emb, [sent], sent_tokens
+                continue
+
+            sim = torch.nn.functional.cosine_similarity(sent_emb, centroid, dim=0).item()
+
+            if sim < threshold or current_tokens + sent_tokens > max_tokens:
+                chunks.append(" ".join(current_chunk))
+                overlap = current_chunk[-overlap_sentences:] if overlap_sentences > 0 else []
+                current_chunk = overlap + [sent]
+                current_tokens = sum(len(s.split()) for s in current_chunk)
+                overlap_embs = [torch.tensor(self.embed_model.encode(s)) for s in current_chunk]
+                centroid = torch.stack(overlap_embs).mean(dim=0)
+            else:
+                current_chunk.append(sent)
+                current_tokens += sent_tokens
+                centroid = decay * sent_emb + (1 - decay) * centroid
+
+        if current_chunk: chunks.append(" ".join(current_chunk))
+        return chunks
+
+    def embedding(self, text: str) -> list[float]:
+        return self.embed_model.encode(text, normalize_embeddings=True).tolist()
+
+    def upload_raw_text(self, raw_text: str, doc_id: str):
+        chunks = self.semantic_chunk(raw_text)
+        vectors = []
+        for idx, chunk in enumerate(chunks):
+            if not chunk.strip(): continue
+            vectors.append({
+                "id": f"{doc_id}-chunk-{idx}",
+                "values": self.embedding(chunk),
+                "metadata": {"doc_id": doc_id, "text": chunk},
+            })
+        if vectors:
+            # Upsert in batches if vectors are many
+            self.index.upsert(vectors=vectors)
+        print(f"[UPLOAD] Success: doc_id={doc_id}")
+
+    def retrieve_candidates_from_pinecone(self, query: str, allowed_doc_ids: list[str], k: int = 10) -> list[dict]:
+        q_vec = self.embedding(query)
+        res = self.index.query(
+            vector=q_vec,
+            top_k=k,
+            filter={"doc_id": {"$in": allowed_doc_ids}},
+            include_metadata=True
+        )
+        
+        candidates = []
+        for match in res.matches:
+            candidates.append({
+                "text": match.metadata["text"],
+                "pinecone_score": float(match.score),
+                "doc_id": match.metadata["doc_id"]
+            })
+        return candidates
+
+    def rerank_candidates(self, query: str, candidates: list, top_n: int = 3) -> list:
+        if not candidates: return []
+        pairs = [[query, c["text"]] for c in candidates]
+        rerank_scores = self.reranker.predict(pairs)
+        
+        for c, s in zip(candidates, rerank_scores):
+            c["final_score"] = float(s)
+            
+        candidates.sort(key=lambda x: x["final_score"], reverse=True)
+        return candidates[:top_n]
+
+    def generate_answer(self, query: str, retrieved_chunks: list) -> str:
+        if not retrieved_chunks: return "No context found."
+        context = "\n---\n".join(c["text"] for c in retrieved_chunks)
+        
+        prompt = f"Use the context below to answer: {query}\n\nContext:\n{context}"
+        
+        try:
+            # FIXED: Corrected call for google-genai library
+            response = self.client.models.generate_content(
+                model=self.llm_model_id,
+                contents=prompt
+            )
+            return response.text
+        except Exception as e:
+            return f"LLM Error: {str(e)}"
+
+    def search(self, query: str, allowed_doc_ids: list[str]) -> str:
+        candidates = self.retrieve_candidates_from_pinecone(query, allowed_doc_ids)
+        if not candidates: return "No relevant documents found."
+        top_chunks = self.rerank_candidates(query, candidates)
+        return self.generate_answer(query, top_chunks)
+
+    def ingest_document(self, raw_text: str, doc_id: str):
+        # Pinecone doesn't have a "delete by metadata" in all index types 
+        # without a specialized setup, but this works for most:
+        try:
+            self.index.delete(filter={"doc_id": {"$eq": doc_id}})
+        except:
+            pass 
+        self.upload_raw_text(raw_text, doc_id)

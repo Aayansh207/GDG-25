@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Summary – Neuro Ranger</title>
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#f9ab00",       // GDG Yellow
+            background_light: "#f8f8f5",
+            background_dark: "#000000",
+            accent: "#4285f4",        // GDG Blue
+            surface: "#0A0A0A",
+            nav_bg: "#111111"
+          },
+          fontFamily: { display: ["Roboto", "sans-serif"] },
+          borderRadius: { DEFAULT: "8px" },
+          animation: { "spin-slow": "spin 2.5s linear infinite" },
+          boxShadow: {
+            "glow-accent":  "0 0 20px 0 rgba(66,133,244,0.5)",
+            "glow-primary": "0 0 20px 0 rgba(249,171,0,0.5)"
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body { 
+      min-height: 100dvh;
+      background-color: #000000;
+    }
+  </style>
+</head>
+
+<body class="bg-background_dark font-display flex flex-col min-h-screen text-white">
+
+  <div class="flex flex-1 min-h-[calc(100vh-96px)]">
+
+    <!-- ── SIDEBAR ────────────────────────────────────────────────────────── -->
+    <aside class="flex flex-col items-center gap-8 bg-nav_bg p-4 border-r border-white/10 min-h-full">
+      <div class="text-primary flex items-center justify-center py-2">
+        <img src="./logo.jpg" alt="GDG MNNIT" class="h-10 w-auto" />
+      </div>
+
+      <nav class="flex flex-col items-center gap-8 mt-6">
+        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="index.html" title="Upload">
+          📤
+        </a>
+        <a class="nav-item text-accent relative transition-colors text-4xl" href="summary.html" title="Summary">
+          📄
+          <div class="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-accent rounded-full shadow-glow-accent"></div>
+        </a>
+        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="history.html" title="History">
+          ⏪
+        </a>
+        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="full-search.html" title="Full Search">
+          🔍
+        </a>
+      </nav>
+    </aside>
+
+    <!-- ── MAIN CONTENT ───────────────────────────────────────────────────── -->
+    <main class="flex-1 p-6 md:p-10 overflow-y-auto flex flex-col gap-8" style="background-color: #000000;">
+
+      <div>
+        <h1 class="text-3xl md:text-4xl font-bold text-primary">Document Summary</h1>
+        <p class="text-white/60 mt-2">AI-generated insights from your uploaded file</p>
+      </div>
+
+      <!-- File Info Card -->
+      <div class="bg-surface rounded-xl p-6 border border-primary/30 shadow-glow-primary/20">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p class="text-sm text-white/60">File</p>
+            <p id="file-name" class="text-xl font-semibold text-white">Loading...</p>
+          </div>
+          <div>
+            <p class="text-sm text-white/60">Processed</p>
+            <p id="file-date" class="text-lg text-primary font-medium">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Section -->
+      <div class="bg-surface rounded-xl p-6 border border-white/10 flex-1 min-h-[300px]" id="summary-box">
+        <div class="flex items-center justify-center h-full">
+          <div class="flex items-center gap-4 text-white/70">
+            <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-lg">Loading summary...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q&A / Ask AI Section -->
+      <div class="bg-surface rounded-xl p-6 border border-white/10">
+        <h2 class="text-xl font-semibold mb-4 text-white">Ask a question about this document</h2>
+        
+        <div class="flex flex-col sm:flex-row gap-3">
+          <input 
+            id="search-input" 
+            type="text" 
+            placeholder="e.g. What are the main conclusions? Summarize section 3..." 
+            class="flex-1 bg-black border border-accent/50 rounded-xl px-6 py-4 text-white placeholder-white/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+          />
+          <button 
+            id="search-btn"
+            class="bg-accent text-black font-medium px-8 py-4 rounded-xl hover:brightness-110 transition shadow-glow-accent whitespace-nowrap">
+            Ask AI
+          </button>
+        </div>
+
+        <div id="backend-box" class="mt-6 min-h-[180px] bg-black/50 rounded-xl p-6 border border-white/10">
+          <p class="text-white/50 italic text-center py-8">Your answer will appear here...</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    const fileNameEl   = document.getElementById("file-name");
+    const fileDateEl   = document.getElementById("file-date");
+    const summaryBox   = document.getElementById("summary-box");
+    const backendBox   = document.getElementById("backend-box");
+    const searchInput  = document.getElementById("search-input");
+    const searchBtn    = document.getElementById("search-btn");
+
+    async function loadSummary() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      let docId = urlParams.get('id');
+    
+      let fetchUrl = docId 
+        ? `http://127.0.0.1:8000/document/${docId}` 
+        : "http://127.0.0.1:8000/summary";
+    
+      const res = await fetch(fetchUrl);
+      const data = await res.json();
+    
+      // Prioritize API data -> LocalStorage -> Default
+      fileNameEl.textContent = data.filename || "Document";
+      fileDateEl.textContent = data.date || "Recent";
+    
+      summaryBox.innerHTML = `
+        <h2 class="text-2xl font-semibold mb-4 text-primary">Summary</h2>
+        <div class="text-white/85 leading-relaxed whitespace-pre-wrap text-base">
+          ${data.summary}
+        </div>
+      `;
+    } catch (err) {
+        summaryBox.innerHTML = `
+          <p class="text-red-400 text-center py-8">
+            Could not load summary: ${err.message}
+          </p>`;
+      }
+    }
+
+    async function askQuestion() {
+      const query = searchInput.value.trim();
+      if (!query) return;
+
+      backendBox.innerHTML = `
+        <div class="flex items-center justify-center gap-4 py-10">
+          <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-white/70">Generating answer...</p>
+        </div>`;
+
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/ask?query=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error(`Backend error ${res.status}`);
+
+        const data = await res.json();
+        const answer = data.answer || "No relevant information found.";
+
+        backendBox.innerHTML = `
+          <h3 class="text-lg font-semibold mb-3 text-accent">Answer</h3>
+          <div class="text-white/85 leading-relaxed whitespace-pre-wrap">
+            ${answer}
+          </div>
+        `;
+      } catch (err) {
+        backendBox.innerHTML = `
+          <p class="text-red-400 py-6 text-center">
+            Failed to get answer: ${err.message}
+          </p>`;
+      }
+    }
+
+    // Event listeners
+    searchBtn.addEventListener("click", askQuestion);
+    searchInput.addEventListener("keydown", e => {
+      if (e.key === "Enter") askQuestion();
+    });
+
+    // Load on page open
+    loadSummary();
+  </script>
+</body>
+</html>

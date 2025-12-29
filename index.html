@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+  <!-- Basic document metadata -->
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Neuro Ranger - GDG MNNIT</title>
+
+  <!-- Tailwind CSS + plugins -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+  <!-- Google Fonts: Roboto -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Material Symbols (Google icon font) -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    rel="stylesheet" />
+
+  <!-- Custom Tailwind configuration -->
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#f9ab00",       // GDG Yellow – main brand color
+            background_light: "#f8f8f5",
+            background_dark: "#000000", // True black background
+            accent: "#4285f4",         // GDG Blue – used for highlights & buttons
+            surface: "#0A0A0A",        // Dark surface for cards
+            nav_bg: "#111111"          // Slightly lighter sidebar
+          },
+          fontFamily: { display: ["Roboto", "sans-serif"] },
+          borderRadius: { DEFAULT: "8px" },
+          animation: { "spin-slow": "spin 2.5s linear infinite" },
+          boxShadow: {
+            "glow-accent":  "0 0 20px 0 rgba(66,133,244,0.5)",
+            "glow-primary": "0 0 20px 0 rgba(249,171,0,0.5)"
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Force full black background even with Tailwind classes -->
+  <style>
+    body {
+      min-height: 100dvh;
+      background-color: #000000;
+    }
+  </style>
+</head>
+
+<!-- Main document body – dark theme, full-height flex layout -->
+<body class="bg-background_dark font-display flex flex-col min-h-screen text-white">
+
+  <!-- Main content wrapper (excludes footer if any) -->
+  <div class="flex flex-1 min-h-[calc(100vh-96px)]">
+
+    <!-- ── LEFT SIDEBAR / NAVIGATION ─────────────────────────────────────── -->
+    <aside class="flex flex-col items-center gap-8 bg-nav_bg p-4 border-r border-white/10 min-h-full">
+      <!-- GDG Logo -->
+      <div class="text-primary flex items-center justify-center py-2">
+        <img src="./logo.jpg" alt="GDG MNNIT" class="h-10 w-auto" />
+      </div>
+
+      <!-- Navigation icons -->
+      <nav class="flex flex-col items-center gap-8 mt-6">
+        <a class="nav-item text-white/80 hover:text-accent transition-colors text-4xl" href="index.html" title="Upload">
+          📤
+        </a>
+        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="summary.html" title="Summary">
+          📄
+        </a>
+        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="history.html" title="History">
+          ⏪
+        </a>
+        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="full-search.html" title="Full Search">
+          🔍
+        </a>
+      </nav>
+    </aside>
+
+    <!-- ── MAIN CONTENT AREA ─────────────────────────────────────────────── -->
+    <main class="flex-1 p-6 flex flex-col gap-8 overflow-y-auto" style="background-color: #000000;">
+
+      <!-- ── Top statistics cards ─────────────────────────────────────────── -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Total documents uploaded -->
+        <div class="bg-surface rounded-xl p-6 border border-primary/30">
+          <p class="text-sm text-white/60 mb-1">Total Documents Uploaded</p>
+          <p id="total-docs" class="text-4xl font-bold text-primary">...</p>
+        </div>
+
+        <!-- FAQ teaser card -->
+        <div class="bg-surface rounded-xl p-6 border border-primary/30 flex flex-col justify-center items-center text-center">
+          <p class="text-sm text-white/60 mb-1">Frequently Asked Questions</p>
+          <p class="text-2xl font-semibold text-accent">View FAQs →</p>
+        </div>
+
+        <!-- Estimated time saved (placeholder value) -->
+        <div class="bg-surface rounded-xl p-6 border border-primary/30">
+          <p class="text-sm text-white/60 mb-1">Total Time Saved</p>
+          <p id="time-saved" class="text-4xl font-bold text-primary">... hrs</p>
+        </div>
+      </div>
+
+      <!-- ── DRAG & DROP UPLOAD ZONE ──────────────────────────────────────── -->
+      <div id="drop-zone"
+        class="flex flex-col items-center justify-between gap-4 border-2 border-dashed border-accent w-full max-w-[700px] mx-auto h-[50vh] bg-black/40 px-10 py-8 cursor-pointer shadow-glow-accent rounded-xl transition">
+
+        <!-- Upload icon + instruction text (slightly lifted) -->
+        <div class="flex flex-col items-center gap-4 mt-[-5vh]">
+          <div class="text-accent flex items-center justify-center">
+            <span class="material-symbols-outlined !text-8xl">cloud_upload</span>
+          </div>
+          <div class="flex flex-col items-center gap-2">
+            <p class="text-white text-3xl font-bold text-center">Drag & Drop Files Here</p>
+            <p class="text-white/70 text-base text-center">PDF, JPEG, PNG, JPG supported</p>
+          </div>
+        </div>
+
+        <!-- Upload button area -->
+        <div id="upload-block" class="flex flex-col items-center gap-6">
+          <button id="select-btn"
+            class="flex items-center justify-center rounded-xl h-16 px-12 bg-accent text-black font-bold text-lg hover:brightness-110 transition shadow-lg">
+            Select File
+          </button>
+        </div>
+
+        <!-- Hidden native file input -->
+        <input id="file-input" type="file" class="hidden" accept="application/pdf,image/jpeg,image/png,image/jpg" />
+
+        <!-- Loading animation shown during preprocessing -->
+        <div id="loader" class="hidden flex flex-col items-center gap-4">
+          <div class="relative">
+            <div class="w-16 h-16 border-4 border-accent animate-spin rounded-full border-t-transparent"></div>
+            <div class="absolute inset-0 w-16 h-16 border-4 border-primary animate-spin-slow rounded-full border-b-transparent"></div>
+          </div>
+          <p class="text-white/70 text-base">Processing your document...</p>
+        </div>
+
+        <!-- Appears after successful preprocessing – leads to summary page -->
+        <button id="summarize-btn"
+          class="hidden flex items-center justify-center rounded-xl h-16 px-12 bg-primary text-black font-bold text-lg hover:brightness-110 transition shadow-lg">
+          Summarize Now
+        </button>
+      </div>
+
+      <!-- ── Semantic search input (global across documents) ─────────────── -->
+      <div class="max-w-[700px] mx-auto w-full mt-4">
+        <form id="search-form" class="flex gap-3">
+          <input id="search-input" type="text" placeholder="Ask anything about your documents..."
+            class="flex-1 bg-surface border border-accent/50 rounded-xl px-6 py-4 text-white placeholder-white/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent" />
+          <button type="submit"
+            class="bg-accent text-black font-bold px-8 py-4 rounded-xl hover:brightness-110 transition">
+            Search
+          </button>
+        </form>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ── JAVASCRIPT ──────────────────────────────────────────────────────── -->
+<script>
+    // DOM element references
+    const selectBtn    = document.getElementById("select-btn");
+    const fileInput    = document.getElementById("file-input");
+    const uploadBlock  = document.getElementById("upload-block");
+    const loader       = document.getElementById("loader");
+    const summarizeBtn = document.getElementById("summarize-btn");
+    const dropZone     = document.getElementById("drop-zone");
+
+    async function handleFile(file) {
+      if (!file) return;
+
+      // Initial UI updates
+      uploadBlock.classList.add("hidden");
+      loader.classList.remove("hidden");
+      summarizeBtn.classList.add("hidden");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/preprocess", {
+          method: "POST",
+          body: formData
+        });
+
+        // Check if the response is valid
+        if (!response.ok) {
+            const errorText = await response.text(); 
+            throw new Error(errorText || `Server error: ${response.status}`);
+        }
+
+        // consume the body ONCE
+        const result = await response.json(); 
+
+        // Store data for subsequent pages
+        localStorage.setItem("currentDocId", result.doc_id);
+        localStorage.setItem("uploadedFileName", file.name);
+        localStorage.setItem("uploadedFileDate", new Date().toLocaleString());
+
+        // Update UI on success
+        loader.classList.add("hidden");
+        summarizeBtn.classList.remove("hidden");
+
+      } catch (err) {
+        console.error("Upload failed:", err);
+        loader.classList.add("hidden");
+        uploadBlock.classList.remove("hidden");
+        alert("Upload failed: " + err.message);
+      }
+    }
+
+    // Event listeners
+    selectBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", e => handleFile(e.target.files[0]));
+
+    dropZone.addEventListener("dragover", e => {
+      e.preventDefault();
+      dropZone.classList.add("border-white");
+    });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("border-white"));
+    dropZone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropZone.classList.remove("border-white");
+      handleFile(e.dataTransfer.files[0]);
+    });
+
+    summarizeBtn.addEventListener("click", () => {
+      // Navigate with ID in URL for robust loading
+      const docId = localStorage.getItem("currentDocId");
+      window.location.href = `summary.html?id=${docId}`;
+    });
+
+    async function loadStats() {
+      try {
+        const res = await fetch("http://127.0.0.1:8000/analysis");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        document.getElementById("total-docs").textContent = data.total_documents || "0";
+        document.getElementById("time-saved").textContent = (data.time_saved || "0") + " hrs";
+      } catch {
+        document.getElementById("total-docs").textContent = "0";
+        document.getElementById("time-saved").textContent = "0 hrs";
+      }
+    }
+    loadStats();
+
+    document.getElementById("search-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const query = document.getElementById("search-input").value.trim();
+      if (query) {
+        window.open(`full-search.html?query=${encodeURIComponent(query)}`, "_blank");
+      }
+    });
+  </script>
+</body>
+</html>

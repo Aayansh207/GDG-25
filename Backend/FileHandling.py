@@ -84,7 +84,7 @@ class FileHandler:
 
     def addFiles(self, file: str, user_id: str) -> dict:
         """Function handling all the processes followed by the uploading of any new file."""
-
+        original_filename = os.path.basename(file)
         # Extracting the file's text
         extracted_content = {}
 
@@ -103,19 +103,14 @@ class FileHandler:
         self.connection = sqlite3.connect("Database/PrimaryDB.db")
         self.cursor = self.connection.cursor()
         self.cursor.execute("SELECT COUNT(*) FROM primarydb")
-
         total_entries = self.cursor.fetchone()[0]
 
-        index = (
-            "DOC_" + "0" * (3 - len(str((total_entries + 1)))) + str(total_entries + 1)
-        )
+        # Clean ID generation
+        index = f"DOC_{total_entries + 1:03d}" 
 
-        # Generating the summary
-        self.summary = self.compareAndSummarize(
-            docs_summaries_compare=None, doc_text=self.text
-        )
+        self.summary = self.compareAndSummarize(docs_summaries_compare=None, doc_text=self.text)
 
-        # Inserting the content into the database.
+        # Use original_filename in the INSERT statement
         self.cursor.execute(
             """
             INSERT INTO primarydb
@@ -157,7 +152,7 @@ class FileHandler:
         self.cursor = self.connection.cursor()
 
         # retrieving the data
-        self.cursor.execute(f"SELECT * FROM primarydb WHERE doc_id = {doc_id}")
+        self.cursor.execute("SELECT * FROM primarydb WHERE doc_id = ?", (doc_id,))
         retrieved_data = self.cursor.fetchall()
         self.connection.close()
         print(len(retrieved_data[0]))
@@ -229,7 +224,7 @@ class FileHandler:
 
             # generating the main summary
             summary = self.model.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=prompts.prompt_summary_new + "\n\n" + doc_text,
             )
             return summary.text  # returning the summary text
@@ -238,7 +233,7 @@ class FileHandler:
             """Comparison logic"""
 
             comparison = self.model.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=prompts.prompt_comparison
                 + "\n\n".join(docs_summaries_compare),
             )

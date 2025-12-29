@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>History – Neuro Ranger</title>
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#f9ab00",       // GDG Yellow
+            background_light: "#f8f8f5",
+            background_dark: "#000000",
+            accent: "#4285f4",        // GDG Blue
+            surface: "#0A0A0A",
+            nav_bg: "#111111"
+          },
+          fontFamily: { display: ["Roboto", "sans-serif"] },
+          borderRadius: { DEFAULT: "8px" },
+          animation: { "spin-slow": "spin 2.5s linear infinite" },
+          boxShadow: {
+            "glow-accent":  "0 0 20px 0 rgba(66,133,244,0.5)",
+            "glow-primary": "0 0 20px 0 rgba(249,171,0,0.5)"
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body { 
+      min-height: 100dvh;
+      background-color: #000000;
+    }
+  </style>
+</head>
+
+<body class="bg-background_dark font-display flex flex-col min-h-screen text-white">
+
+  <div class="flex flex-1 min-h-[calc(100vh-96px)]">
+
+    <!-- ── SIDEBAR NAVIGATION ─────────────────────────────────────────────── -->
+    <aside class="flex flex-col items-center gap-8 bg-nav_bg p-4 border-r border-white/10 min-h-full">
+      <!-- Logo / Brand mark -->
+      <div class="text-primary flex items-center justify-center py-2">
+        <img src="./logo.jpg" alt="GDG MNNIT" class="h-10 w-auto" />
+      </div>
+
+      <nav class="flex flex-col items-center gap-8 mt-6">
+        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="index.html" title="Upload">
+          📤
+        </a>
+        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="summary.html" title="Summary">
+          📄
+        </a>
+        <a class="nav-item text-accent relative transition-colors text-4xl" href="history.html" title="History">
+          ⏪
+          <div class="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-accent rounded-full shadow-glow-accent"></div>
+        </a>
+        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="full-search.html" title="Full Search">
+          🔍
+        </a>
+      </nav>
+    </aside>
+
+    <!-- ── MAIN CONTENT ───────────────────────────────────────────────────── -->
+    <main class="flex-1 p-6 md:p-10 overflow-y-auto" style="background-color: #000000;">
+
+      <h1 class="text-3xl md:text-4xl font-bold mb-3 text-primary">History</h1>
+      <p class="text-white/60 mb-8">Your previously uploaded documents and summaries</p>
+
+      <div id="history-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Loader shown initially -->
+        <div id="history-loader" class="col-span-full flex items-center justify-center gap-3 py-12">
+          <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-8 h-8 border-4 border-primary animate-spin-slow rounded-full border-b-transparent absolute"></div>
+          <p class="text-white/70 text-lg">Loading history...</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    const historyContainer = document.getElementById("history-container");
+    const loader = document.getElementById("history-loader");
+
+    async function loadHistory() {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/history");
+        if (!response.ok) throw new Error("Failed to load history");
+
+        const data = await response.json();
+
+        // Remove loader
+        loader.remove();
+
+        // Sort newest first
+        const keys = Object.keys(data).reverse();
+
+        if (keys.length === 0) {
+          historyContainer.innerHTML = `
+            <div class="col-span-full text-center py-12 text-white/50 italic text-lg">
+              No documents uploaded yet.
+            </div>`;
+          return;
+        }
+
+        keys.forEach(key => {
+          const item = data[key];
+          const preview = item.summary 
+            ? item.summary.substring(0, 120) + (item.summary.length > 120 ? "..." : "")
+            : "No summary generated yet.";
+
+          const card = document.createElement("div");
+          card.className = `
+            bg-surface rounded-xl p-6 border border-white/10 
+            hover:border-accent/60 hover:shadow-glow-accent/30 
+            transition-all duration-300 flex flex-col
+          `;
+
+          card.innerHTML = `
+            <div class="flex justify-between items-start mb-4">
+              <h2 class="text-primary font-semibold text-lg md:text-xl line-clamp-2 pr-2">
+                ${item.filename}
+              </h2>
+              <span class="text-xs text-white/40 bg-black/40 px-2 py-1 rounded border border-white/10">
+                ${key}
+              </span>
+            </div>
+
+            <p class="text-white/70 text-sm mb-5 line-clamp-3 flex-1">
+              ${preview}
+            </p>
+
+            <div class="flex flex-wrap gap-4 text-xs text-white/50 uppercase tracking-wide mt-auto">
+              <span>${item.date || '—'}</span>
+              <span class="text-accent">${item.category || 'Uncategorized'}</span>
+            </div>
+
+            <button 
+              onclick="viewSummary('${key}')"
+              class="mt-5 w-full py-3 bg-accent text-black font-medium rounded-xl hover:brightness-110 transition shadow-glow-accent">
+              View Summary
+            </button>
+          `;
+
+          historyContainer.appendChild(card);
+        });
+
+      } catch (err) {
+        loader.remove();
+        historyContainer.innerHTML = `
+          <div class="col-span-full text-center py-12 text-red-400">
+            Error loading history: ${err.message}
+          </div>`;
+      }
+    }
+
+    window.viewSummary = function(docId) {
+      window.location.href = `summary.html?id=${docId}`;
+    };
+
+    // Load when page opens
+    loadHistory();
+  </script>
+</body>
+</html>
