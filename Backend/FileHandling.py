@@ -43,6 +43,7 @@ class FileHandler:
         self.cursor = self.connection.cursor()
         self.cursor.execute(
             """CREATE TABLE IF NOT EXISTS primarydb (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                             doc_id TEXT UNIQUE NOT NULL,
                             user_id TEXT NOT NULL,
                             filename TEXT NOT NULL,
@@ -117,17 +118,8 @@ class FileHandler:
 
         # Inserting the content into the database.
         self.cursor.execute(
-            """
-            INSERT INTO primarydb
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                index,
-                user_id,
-                os.path.basename(file),
-                date.today(),
-                self.summary
-            )
+            "INSERT INTO primarydb (doc_id, user_id, filename, date, summary) VALUES (?, ?, ?, ?, ?)",
+            (index, user_id, os.path.basename(file), str(date.today()), self.summary)
         )
 
         self.connection.commit()
@@ -157,19 +149,19 @@ class FileHandler:
         self.cursor = self.connection.cursor()
 
         # retrieving the data
-        self.cursor.execute(f"SELECT * FROM primarydb WHERE doc_id = {doc_id}")
+        self.cursor.execute("SELECT * FROM primarydb WHERE doc_id = ?", (doc_id,))
         retrieved_data = self.cursor.fetchall()
         self.connection.close()
-        print(len(retrieved_data[0]))
+
         if retrieved_data != []:
             retrieved_content.update(
                 {
                     doc_id: {
-                        "index": retrieved_data[0][0],
-                        "user_id": retrieved_data[0][1],
-                        "filename": retrieved_data[0][2],
-                        "upload_date": retrieved_data[0][3],
-                        "summary": retrieved_data[0][4],
+                        "index": retrieved_data[1],
+                        "user_id": retrieved_data[2],
+                        "filename": retrieved_data[3],
+                        "upload_date": retrieved_data[4],
+                        "summary": retrieved_data[5],
                     }
                 }
             )
@@ -229,7 +221,7 @@ class FileHandler:
 
             # generating the main summary
             summary = self.model.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=prompts.prompt_summary_new + "\n\n" + doc_text,
             )
             return summary.text  # returning the summary text
@@ -238,7 +230,7 @@ class FileHandler:
             """Comparison logic"""
 
             comparison = self.model.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=prompts.prompt_comparison
                 + "\n\n".join(docs_summaries_compare),
             )
