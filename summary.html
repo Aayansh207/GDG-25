@@ -137,37 +137,28 @@
     const searchBtn    = document.getElementById("search-btn");
 
     async function loadSummary() {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        let docId = urlParams.get('id') || localStorage.getItem("currentDocId");
-
-        let fetchUrl = "http://127.0.0.1:8000/summary"; // latest by default
-        if (docId) {
-          fetchUrl = `http://127.0.0.1:8000/document/${docId}`;
-        }
-
-        const res = await fetch(fetchUrl);
-        if (!res.ok) throw new Error(`Backend returned ${res.status}`);
-
-        const data = await res.json();
-
-        const filename = data.filename || localStorage.getItem("uploadedFileName") || "Unknown Document";
-        const dateStr  = data.date || new Date().toLocaleDateString();
-        const category = data.category || "—";
-        const summary  = data.summary || "No summary was generated for this document.";
-
-        fileNameEl.textContent = filename;
-        fileDateEl.textContent = dateStr;
-
-        summaryBox.innerHTML = `
-          <h2 class="text-2xl font-semibold mb-4 text-primary">Summary</h2>
-          ${category !== "—" ? `<p class="text-sm text-accent mb-4">Category: ${category}</p>` : ''}
-          <div class="text-white/85 leading-relaxed whitespace-pre-wrap text-base">
-            ${summary}
-          </div>
-        `;
-
-      } catch (err) {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      let docId = urlParams.get('id');
+    
+      let fetchUrl = docId 
+        ? `http://127.0.0.1:8000/document/${docId}` 
+        : "http://127.0.0.1:8000/summary";
+    
+      const res = await fetch(fetchUrl);
+      const data = await res.json();
+    
+      // Prioritize API data -> LocalStorage -> Default
+      fileNameEl.textContent = data.filename || "Document";
+      fileDateEl.textContent = data.date || "Recent";
+    
+      summaryBox.innerHTML = `
+        <h2 class="text-2xl font-semibold mb-4 text-primary">Summary</h2>
+        <div class="text-white/85 leading-relaxed whitespace-pre-wrap text-base">
+          ${data.summary}
+        </div>
+      `;
+    } catch (err) {
         summaryBox.innerHTML = `
           <p class="text-red-400 text-center py-8">
             Could not load summary: ${err.message}

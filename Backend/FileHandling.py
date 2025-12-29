@@ -85,7 +85,7 @@ class FileHandler:
 
     def addFiles(self, file: str, user_id: str) -> dict:
         """Function handling all the processes followed by the uploading of any new file."""
-
+        original_filename = os.path.basename(file)
         # Extracting the file's text
         extracted_content = {}
 
@@ -104,22 +104,17 @@ class FileHandler:
         self.connection = sqlite3.connect("Database/PrimaryDB.db")
         self.cursor = self.connection.cursor()
         self.cursor.execute("SELECT COUNT(*) FROM primarydb")
-
         total_entries = self.cursor.fetchone()[0]
 
-        index = (
-            "DOC_" + "0" * (3 - len(str((total_entries + 1)))) + str(total_entries + 1)
-        )
+        # Clean ID generation
+        index = f"DOC_{total_entries + 1:03d}" 
 
-        # Generating the summary
-        self.summary = self.compareAndSummarize(
-            docs_summaries_compare=None, doc_text=self.text
-        )
+        self.summary = self.compareAndSummarize(docs_summaries_compare=None, doc_text=self.text)
 
-        # Inserting the content into the database.
+        # Use original_filename in the INSERT statement
         self.cursor.execute(
             "INSERT INTO primarydb (doc_id, user_id, filename, date, summary) VALUES (?, ?, ?, ?, ?)",
-            (index, user_id, os.path.basename(file), str(date.today()), self.summary)
+            (index, user_id, original_filename, str(date.today()), self.summary)
         )
 
         self.connection.commit()

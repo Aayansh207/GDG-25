@@ -40,36 +40,32 @@ class SearchRequest(BaseModel):
 
 # Updated main.py snippet for consistency
 @app.post("/preprocess")
-async def preprocess_and_upload(
-    user_id: str = Form("default_user"),
-    file: UploadFile = File(...)
-):
-    # Ensure directory exists
+async def preprocess_and_upload(user_id: str = Form("default_user"), file: UploadFile = File(...)):
     os.makedirs(STORAGE_DIR, exist_ok=True)
-    os.makedirs("Database", exist_ok=True)
     
     temp_path = os.path.join(STORAGE_DIR, file.filename)
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
     try:
-        # FileHandler handles the DB and summary
+        # file_handler.addFiles now stores the correct original filename in DB
         extracted_data = file_handler.addFiles(temp_path, user_id)
         doc_id = list(extracted_data.keys())[0]
         raw_text = extracted_data[doc_id]["text"]
 
-        # Rename file to doc_id for structured storage
+        # Rename physical file to doc_id to avoid OS-level naming conflicts
         ext = os.path.splitext(file.filename)[1]
         final_path = os.path.join(STORAGE_DIR, f"{doc_id}{ext}")
-        os.rename(temp_path, final_path)
+        
+        # Check if file exists before renaming to prevent errors
+        if os.path.exists(temp_path):
+            os.rename(temp_path, final_path)
 
-        # Ingest into Pinecone
         rag_system.ingest_document(raw_text, doc_id)
         
-        return {"doc_id": doc_id, "status": "success"}
+        return {"doc_id": doc_id, "filename": file.filename, "status": "success"}
     except Exception as e:
         if os.path.exists(temp_path): os.remove(temp_path)
-        print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.get("/summary")
