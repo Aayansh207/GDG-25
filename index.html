@@ -192,42 +192,41 @@
       </div>
     </div>
 
+<div id="drop-zone"
+  class="flex flex-col items-center justify-center gap-8 border-2 border-dashed border-accent w-full max-w-[700px] mx-auto min-h-[450px] bg-black/40 backdrop-blur-custom px-6 py-10 cursor-pointer shadow-glow-accent rounded-xl transition overflow-hidden">
 
-    <!-- Drag & Drop Upload Zone -->
-    <div id="drop-zone"
-      class="flex flex-col items-center justify-between gap-4 border-2 border-dashed border-accent w-full max-w-[700px] mx-auto h-[50vh] bg-black/40 backdrop-blur-custom px-10 py-8 cursor-pointer shadow-glow-accent rounded-xl transition">
+  <div class="flex flex-col items-center gap-4 w-full">
+    <div class="text-accent">
+      <span class="material-symbols-outlined !text-7xl md:!text-8xl">cloud_upload</span>
+    </div>
+    <div class="flex flex-col items-center gap-2 text-center">
+      <p class="text-white text-2xl md:text-3xl font-bold">Drag & Drop Files Here</p>
+      <p class="text-white/70 text-sm md:text-base">PDF, JPEG, PNG, JPG, TXT supported</p>
+    </div>
+  </div>
 
-      <div class="flex flex-col items-center gap-4 mt-[-5vh]">
-        <div class="text-accent">
-          <span class="material-symbols-outlined !text-8xl">cloud_upload</span>
-        </div>
-        <div class="flex flex-col items-center gap-2">
-          <p class="text-white text-3xl font-bold text-center">Drag & Drop Files Here</p>
-          <p class="text-white/70 text-base text-center">PDF, JPEG, PNG, JPG, TXT supported</p>
-        </div>
-      </div>
-
-      <div id="upload-block" class="flex flex-col items-center gap-6">
-        <button id="select-btn"
-          class="flex items-center justify-center rounded-xl h-16 px-12 bg-accent text-black font-bold text-lg hover:brightness-110 transition shadow-lg">
-          Select File
-        </button>
-      </div>
-
-      <input id="file-input" type="file" class="hidden"
-        accept="application/pdf,image/jpeg,image/png,image/jpg,text/plain" />
-
-      <div id="loader" class="hidden flex flex-col items-center gap-2">
-        <div class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-white/70 text-base">Processing your document...</p>
-      </div>
-
-      <button id="summarize-btn"
-        class="hidden flex items-center justify-center rounded-xl h-16 px-12 bg-primary text-black font-bold text-lg hover:brightness-110 transition shadow-lg">
-        Summarize Now
+  <div class="flex flex-col items-center justify-center w-full min-h-[80px]">
+    <div id="upload-block">
+      <button id="select-btn"
+        class="flex items-center justify-center rounded-xl h-14 md:h-16 px-10 md:px-12 bg-accent text-black font-bold text-lg hover:brightness-110 transition shadow-lg whitespace-nowrap">
+        Select File
       </button>
     </div>
 
+    <input id="file-input" type="file" class="hidden"
+      accept="application/pdf,image/jpeg,image/png,image/jpg,text/plain" />
+
+    <div id="loader" class="hidden flex flex-col items-center gap-3">
+      <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-white/70 text-base">Processing your document...</p>
+    </div>
+
+    <button id="summarize-btn"
+      class="hidden flex items-center justify-center rounded-xl h-14 md:h-16 px-10 md:px-12 bg-primary text-black font-bold text-lg hover:brightness-110 transition shadow-lg whitespace-nowrap">
+      Summarize Now
+    </button>
+  </div>
+</div>
     <!-- Semantic Search -->
     <div class="max-w-[700px] mx-auto w-full mt-4">
       <form id="search-form" class="flex gap-0">

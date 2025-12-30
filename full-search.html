@@ -97,7 +97,6 @@
 
 <body class="font-display flex flex-col min-h-screen text-white">
 
-  <!-- Video Background - Now using T.mp4 -->
   <div id="video-bg">
     <video autoplay muted loop playsinline preload="auto">
       <source src="./T.mp4" type="video/mp4">
@@ -105,7 +104,6 @@
     </video>
   </div>
 
-  <!-- FIXED SIDEBAR - Consistent with all other pages -->
   <aside
     class="fixed inset-y-0 left-0 w-20 flex flex-col items-center bg-nav_bg/80 backdrop-blur-custom border-r border-white/10 z-20">
     <div class="text-primary flex items-center justify-center py-6">
@@ -137,7 +135,6 @@
         </svg>
       </a>
 
-      <!-- Active: Full Search -->
       <a class="text-accent hover:text-accent transition-colors" href="full-search.html" title="Full Search">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"
           stroke-width="2">
@@ -147,14 +144,12 @@
     </nav>
   </aside>
 
-  <!-- Main Content -->
   <main class="ml-20 flex-1 p-6 md:p-10 scroll-container min-h-screen">
 
     <div class="max-w-5xl mx-auto">
       <h1 class="text-3xl md:text-4xl font-bold text-primary text-glow mb-2">Full Document Search</h1>
       <p class="text-white/60 mb-8">Search across all your uploaded documents semantically</p>
 
-      <!-- Search Bar -->
       <div class="mb-10">
         <form id="search-form" class="flex flex-col sm:flex-row gap-3">
           <input id="search-input" type="text" placeholder="Ask anything about your documents..."
@@ -166,10 +161,8 @@
         </form>
       </div>
 
-      <!-- Results Area - Initially empty, no loader shown until search -->
       <div id="results-container" class="space-y-6">
-        <!-- Loader will be injected here only during search -->
-      </div>
+        </div>
     </div>
 
   </main>
@@ -179,7 +172,7 @@
     const searchInput = document.getElementById("search-input");
     const resultsContainer = document.getElementById("results-container");
 
-    // Pre-fill from URL and auto-search if ?query= present
+    // Pre-fill from URL
     const urlParams = new URLSearchParams(window.location.search);
     const initialQuery = urlParams.get("query");
     if (initialQuery) {
@@ -195,12 +188,46 @@
       history.replaceState(null, "", `full-search.html?query=${encodeURIComponent(query)}`);
     });
 
+    // Helper to format text (bullets, lists) similar to Summary Page
+    function formatText(text) {
+      if (!text) return "<p class='text-white/60'>No content available.</p>";
+      const lines = text.split('\n');
+      let html = '';
+      let inList = false;
+      let listType = 'ul';
+
+      lines.forEach(line => {
+        line = line.trim();
+        if (!line) {
+          if (inList) { html += '</' + listType + '>'; inList = false; }
+          html += '<p class="my-3"></p>';
+          return;
+        }
+        const isBullet = line.match(/^[-*•]\s+/);
+        const isNumbered = line.match(/^\d+\.\s+/);
+
+        if (isBullet || isNumbered) {
+          if (!inList) {
+            listType = isNumbered ? 'ol' : 'ul';
+            html += `<${listType} class="list-disc pl-6 my-3 space-y-1">`;
+            inList = true;
+          }
+          const item = line.replace(/^[-*•]\s+/, '').replace(/^\d+\.\s+/, '');
+          html += `<li class="text-white/90 leading-relaxed">${item}</li>`;
+        } else {
+          if (inList) { html += '</' + listType + '>'; inList = false; }
+          html += `<p class="my-3 text-white/90 leading-relaxed">${line}</p>`;
+        }
+      });
+      if (inList) html += '</' + listType + '>';
+      return html;
+    }
+
     async function performSearch(query) {
-      // Clear previous results and show loader
       resultsContainer.innerHTML = `
         <div id="results-loader" class="flex items-center justify-center gap-4 py-16">
           <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-          <p class="text-white/70 text-lg">Searching your documents...</p>
+          <p class="text-white/70 text-lg">Analyzing all documents...</p>
         </div>
       `;
 
@@ -221,40 +248,26 @@
           return;
         }
 
+        // We assume backend returns a single unified "Cross-Document" result in the list.
+        // Even if it returns multiple, we display them as answers, not file links.
         results.forEach(result => {
-          const scorePercent = Math.round((result.score || 0) * 100);
-          const snippet = result.snippet || "No preview available.";
-          const filename = result.filename || "Document";
-          const docId = result.id || "";
+          const snippet = result.snippet || "No answer generated.";
 
           const card = document.createElement("div");
+          // Styling: Removed hover effects, treated as a static info box
           card.className = `
-            bg-surface/80 backdrop-blur-custom rounded-xl p-6 border border-white/10 
-            hover:border-accent/60 hover:shadow-glow-accent/30 
-            transition-all duration-300
+            bg-surface/80 backdrop-blur-custom rounded-xl p-6 md:p-8 
+            border border-primary/30 shadow-glow-primary/20
           `;
 
           card.innerHTML = `
-            <div class="flex justify-between items-start mb-3">
-              <h3 class="text-lg font-semibold text-primary line-clamp-2 pr-4">
-                ${filename}
-              </h3>
-              <span class="text-xs px-3 py-1 rounded-full bg-accent/20 text-accent font-medium">
-                ${scorePercent}% match
-              </span>
-            </div>
+            <h3 class="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+              <span class="material-symbols-outlined">auto_awesome</span>
+              Cross-Document Analysis
+            </h3>
 
-            <p class="text-white/75 text-sm mb-4 line-clamp-4 leading-relaxed">
-              ${snippet}
-            </p>
-
-            <div class="flex items-center justify-between text-xs text-white/50">
-              <span>Relevance: ${scorePercent}%</span>
-              <button 
-                onclick="viewDocument('${docId}')"
-                class="px-4 py-2 bg-accent/80 text-black rounded-lg hover:bg-accent transition text-sm font-medium">
-                View Document
-              </button>
+            <div class="text-white/90 leading-relaxed text-base">
+              ${formatText(snippet)}
             </div>
           `;
 
@@ -268,14 +281,6 @@
           </div>`;
       }
     }
-
-    window.viewDocument = function (docId) {
-      if (docId) {
-        window.location.href = `summary.html?id=${docId}`;
-      } else {
-        alert("No document ID available");
-      }
-    };
   </script>
 </body>
 
