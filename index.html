@@ -13,7 +13,7 @@
   <!-- Google Fonts: Roboto -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
 
-  <!-- Material Symbols (Google icon font) -->
+  <!-- Material Symbols -->
   <link
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
     rel="stylesheet" />
@@ -25,159 +25,234 @@
       theme: {
         extend: {
           colors: {
-            primary: "#f9ab00",       // GDG Yellow – main brand color
-            background_light: "#f8f8f5",
-            background_dark: "#000000", // True black background
-            accent: "#4285f4",         // GDG Blue – used for highlights & buttons
-            surface: "#0A0A0A",        // Dark surface for cards
-            nav_bg: "#111111"          // Slightly lighter sidebar
+            primary: "#f9ab00",
+            accent: "#4285f4",
+            surface: "#0A0A0A",
+            nav_bg: "#111111"
           },
           fontFamily: { display: ["Roboto", "sans-serif"] },
           borderRadius: { DEFAULT: "8px" },
-          animation: { "spin-slow": "spin 2.5s linear infinite" },
+          animation: {
+            "spin-slow": "spin 2.5s linear infinite",
+            "float": "float 6s ease-in-out infinite"
+          },
           boxShadow: {
-            "glow-accent":  "0 0 20px 0 rgba(66,133,244,0.5)",
+            "glow-accent": "0 0 20px 0 rgba(66,133,244,0.5)",
             "glow-primary": "0 0 20px 0 rgba(249,171,0,0.5)"
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-12px)' }
+            }
+          },
+          textShadow: {
+            glow: "0 0 30px rgba(249, 171, 0, 0.6)",
+            "glow-strong": "0 0 40px rgba(249, 171, 0, 0.8)",
+            "glow-soft": "0 0 20px rgba(249, 171, 0, 0.4)"
           }
         }
-      }
+      },
+      plugins: [
+        function ({ addUtilities }) {
+          addUtilities({
+            '.text-glow': { textShadow: '0 0 30px rgba(249, 171, 0, 0.6)' },
+            '.text-glow-strong': { textShadow: '0 0 40px rgba(249, 171, 0, 0.8)' },
+            '.text-glow-soft': { textShadow: '0 0 20px rgba(249, 171, 0, 0.4)' }
+          })
+        }
+      ]
     };
   </script>
 
-  <!-- Force full black background even with Tailwind classes -->
+  <!-- Video Background Styles -->
   <style>
     body {
       min-height: 100dvh;
+      margin: 0;
       background-color: #000000;
+    }
+
+    #video-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -2;
+      overflow: hidden;
+    }
+
+    #video-bg video {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      min-width: 100%;
+      min-height: 100%;
+      width: auto;
+      height: auto;
+      transform: translate(-50%, -50%);
+      object-fit: cover;
+    }
+
+    #video-bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      z-index: -1;
+    }
+
+    .backdrop-blur-custom {
+      backdrop-filter: blur(8px);
+    }
+
+    .scroll-container {
+      overflow: y-auto;
+      overflow: x-hidden;
     }
   </style>
 </head>
 
-<!-- Main document body – dark theme, full-height flex layout -->
-<body class="bg-background_dark font-display flex flex-col min-h-screen text-white">
+<body class="font-display flex flex-col min-h-screen text-white">
 
-  <!-- Main content wrapper (excludes footer if any) -->
-  <div class="flex flex-1 min-h-[calc(100vh-96px)]">
-
-    <!-- ── LEFT SIDEBAR / NAVIGATION ─────────────────────────────────────── -->
-    <aside class="flex flex-col items-center gap-8 bg-nav_bg p-4 border-r border-white/10 min-h-full">
-      <!-- GDG Logo -->
-      <div class="text-primary flex items-center justify-center py-2">
-        <img src="./logo.jpg" alt="GDG MNNIT" class="h-10 w-auto" />
-      </div>
-
-      <!-- Navigation icons -->
-      <nav class="flex flex-col items-center gap-8 mt-6">
-        <a class="nav-item text-white/80 hover:text-accent transition-colors text-4xl" href="index.html" title="Upload">
-          📤
-        </a>
-        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="summary.html" title="Summary">
-          📄
-        </a>
-        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="history.html" title="History">
-          ⏪
-        </a>
-        <a class="nav-item text-white/60 hover:text-accent transition-colors text-4xl" href="full-search.html" title="Full Search">
-          🔍
-        </a>
-      </nav>
-    </aside>
-
-    <!-- ── MAIN CONTENT AREA ─────────────────────────────────────────────── -->
-    <main class="flex-1 p-6 flex flex-col gap-8 overflow-y-auto" style="background-color: #000000;">
-
-      <!-- ── Top statistics cards ─────────────────────────────────────────── -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Total documents uploaded -->
-        <div class="bg-surface rounded-xl p-6 border border-primary/30">
-          <p class="text-sm text-white/60 mb-1">Total Documents Uploaded</p>
-          <p id="total-docs" class="text-4xl font-bold text-primary">...</p>
-        </div>
-
-        <!-- FAQ teaser card -->
-        <div class="bg-surface rounded-xl p-6 border border-primary/30 flex flex-col justify-center items-center text-center">
-          <p class="text-sm text-white/60 mb-1">Frequently Asked Questions</p>
-          <p class="text-2xl font-semibold text-accent">View FAQs →</p>
-        </div>
-
-        <!-- Estimated time saved (placeholder value) -->
-        <div class="bg-surface rounded-xl p-6 border border-primary/30">
-          <p class="text-sm text-white/60 mb-1">Total Time Saved</p>
-          <p id="time-saved" class="text-4xl font-bold text-primary">... hrs</p>
-        </div>
-      </div>
-
-      <!-- ── DRAG & DROP UPLOAD ZONE ──────────────────────────────────────── -->
-      <div id="drop-zone"
-        class="flex flex-col items-center justify-between gap-4 border-2 border-dashed border-accent w-full max-w-[700px] mx-auto h-[50vh] bg-black/40 px-10 py-8 cursor-pointer shadow-glow-accent rounded-xl transition">
-
-        <!-- Upload icon + instruction text (slightly lifted) -->
-        <div class="flex flex-col items-center gap-4 mt-[-5vh]">
-          <div class="text-accent flex items-center justify-center">
-            <span class="material-symbols-outlined !text-8xl">cloud_upload</span>
-          </div>
-          <div class="flex flex-col items-center gap-2">
-            <p class="text-white text-3xl font-bold text-center">Drag & Drop Files Here</p>
-            <p class="text-white/70 text-base text-center">PDF, JPEG, PNG, JPG supported</p>
-          </div>
-        </div>
-
-        <!-- Upload button area -->
-        <div id="upload-block" class="flex flex-col items-center gap-6">
-          <button id="select-btn"
-            class="flex items-center justify-center rounded-xl h-16 px-12 bg-accent text-black font-bold text-lg hover:brightness-110 transition shadow-lg">
-            Select File
-          </button>
-        </div>
-
-        <!-- Hidden native file input -->
-        <input id="file-input" type="file" class="hidden" accept="application/pdf,image/jpeg,image/png,image/jpg" />
-
-        <!-- Loading animation shown during preprocessing -->
-        <div id="loader" class="hidden flex flex-col items-center gap-4">
-          <div class="relative">
-            <div class="w-16 h-16 border-4 border-accent animate-spin rounded-full border-t-transparent"></div>
-            <div class="absolute inset-0 w-16 h-16 border-4 border-primary animate-spin-slow rounded-full border-b-transparent"></div>
-          </div>
-          <p class="text-white/70 text-base">Processing your document...</p>
-        </div>
-
-        <!-- Appears after successful preprocessing – leads to summary page -->
-        <button id="summarize-btn"
-          class="hidden flex items-center justify-center rounded-xl h-16 px-12 bg-primary text-black font-bold text-lg hover:brightness-110 transition shadow-lg">
-          Summarize Now
-        </button>
-      </div>
-
-      <!-- ── Semantic search input (global across documents) ─────────────── -->
-      <div class="max-w-[700px] mx-auto w-full mt-4">
-        <form id="search-form" class="flex gap-3">
-          <input id="search-input" type="text" placeholder="Ask anything about your documents..."
-            class="flex-1 bg-surface border border-accent/50 rounded-xl px-6 py-4 text-white placeholder-white/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent" />
-          <button type="submit"
-            class="bg-accent text-black font-bold px-8 py-4 rounded-xl hover:brightness-110 transition">
-            Search
-          </button>
-        </form>
-      </div>
-
-    </main>
+  <!-- FULL-SCREEN VIDEO BACKGROUND -->
+  <div id="video-bg">
+    <video autoplay muted loop playsinline preload="auto">
+      <source src="./N.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
   </div>
 
-  <!-- ── JAVASCRIPT ──────────────────────────────────────────────────────── -->
-<script>
-    // DOM element references
-    const selectBtn    = document.getElementById("select-btn");
-    const fileInput    = document.getElementById("file-input");
-    const uploadBlock  = document.getElementById("upload-block");
-    const loader       = document.getElementById("loader");
+  <!-- FIXED SIDEBAR -->
+  <aside
+    class="fixed inset-y-0 left-0 w-20 flex flex-col items-center bg-nav_bg/80 backdrop-blur-custom border-r border-white/10 z-20">
+    <div class="text-primary flex items-center justify-center py-6">
+      <img src="./logo.jpg" alt="GDG MNNIT" class="h-10 w-auto" />
+    </div>
+
+    <nav class="flex flex-col items-center gap-8 mt-6 flex-1">
+      <!-- Upload - Active on index -->
+      <a class="text-accent hover:text-accent transition-colors" href="index.html" title="Upload">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+      </a>
+
+      <a class="text-white/60 hover:text-accent transition-colors" href="summary.html" title="Summary">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      </a>
+
+      <a class="text-white/60 hover:text-accent transition-colors" href="history.html" title="History">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 12l-3-3" />
+        </svg>
+      </a>
+
+      <a class="text-white/60 hover:text-accent transition-colors" href="full-search.html" title="Full Search">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="ml-20 flex-1 p-6 flex flex-col gap-8 scroll-container min-h-screen">
+
+    <!-- Stats - fully left aligned near navbar -->
+    <div class="pt-6 px-6">
+      <div class="flex flex-col md:flex-row gap-x-16 gap-y-8">
+        <div class="text-left">
+          <p id="total-docs" class="text-3xl font-bold text-primary tracking-tight text-glow">
+            ...
+          </p>
+          <p class="text-white/60 text-base md:text-lg mt-2">
+            Total Documents Uploaded
+          </p>
+        </div>
+
+        <div class="text-left">
+          <p id="time-saved" class="text-3xl font-bold text-primary tracking-tight text-glow">
+            ... hrs
+          </p>
+          <p class="text-white/60 text-base md:text-lg mt-2">
+            Total Time Saved
+          </p>
+        </div>
+      </div>
+    </div>
+
+<div id="drop-zone"
+  class="flex flex-col items-center justify-center gap-8 border-2 border-dashed border-accent w-full max-w-[700px] mx-auto min-h-[450px] bg-black/40 backdrop-blur-custom px-6 py-10 cursor-pointer shadow-glow-accent rounded-xl transition overflow-hidden">
+
+  <div class="flex flex-col items-center gap-4 w-full">
+    <div class="text-accent">
+      <span class="material-symbols-outlined !text-7xl md:!text-8xl">cloud_upload</span>
+    </div>
+    <div class="flex flex-col items-center gap-2 text-center">
+      <p class="text-white text-2xl md:text-3xl font-bold">Drag & Drop Files Here</p>
+      <p class="text-white/70 text-sm md:text-base">PDF, JPEG, PNG, JPG, TXT supported</p>
+    </div>
+  </div>
+
+  <div class="flex flex-col items-center justify-center w-full min-h-[80px]">
+    <div id="upload-block">
+      <button id="select-btn"
+        class="flex items-center justify-center rounded-xl h-14 md:h-16 px-10 md:px-12 bg-accent text-black font-bold text-lg hover:brightness-110 transition shadow-lg whitespace-nowrap">
+        Select File
+      </button>
+    </div>
+
+    <input id="file-input" type="file" class="hidden"
+      accept="application/pdf,image/jpeg,image/png,image/jpg,text/plain" />
+
+    <div id="loader" class="hidden flex flex-col items-center gap-3">
+      <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-white/70 text-base">Processing your document...</p>
+    </div>
+
+    <button id="summarize-btn"
+      class="hidden flex items-center justify-center rounded-xl h-14 md:h-16 px-10 md:px-12 bg-primary text-black font-bold text-lg hover:brightness-110 transition shadow-lg whitespace-nowrap">
+      Summarize Now
+    </button>
+  </div>
+</div>
+    <!-- Semantic Search -->
+    <div class="max-w-[700px] mx-auto w-full mt-4">
+      <form id="search-form" class="flex gap-0">
+        <input id="search-input" type="text" placeholder="Ask anything about your documents..."
+          class="flex-1 bg-surface/80 backdrop-blur-custom border border-r-0 border-accent/50 rounded-l-xl px-6 py-4 text-white placeholder-white/50 focus:outline-none focus:border-accent" />
+        <button type="submit"
+          class="bg-accent text-black font-bold px-6 py-3 rounded-r-xl hover:brightness-110 transition flex items-center justify-center">
+          <span class="material-symbols-outlined text-2xl font-bold">search</span>
+        </button>
+      </form>
+    </div>
+
+  </main>
+
+  <!-- JavaScript -->
+  <script>
+    const selectBtn = document.getElementById("select-btn");
+    const fileInput = document.getElementById("file-input");
+    const uploadBlock = document.getElementById("upload-block");
+    const loader = document.getElementById("loader");
     const summarizeBtn = document.getElementById("summarize-btn");
-    const dropZone     = document.getElementById("drop-zone");
+    const dropZone = document.getElementById("drop-zone");
 
     async function handleFile(file) {
       if (!file) return;
 
-      // Initial UI updates
       uploadBlock.classList.add("hidden");
       loader.classList.remove("hidden");
       summarizeBtn.classList.add("hidden");
@@ -191,21 +266,17 @@
           body: formData
         });
 
-        // Check if the response is valid
         if (!response.ok) {
-            const errorText = await response.text(); 
-            throw new Error(errorText || `Server error: ${response.status}`);
+          const errorText = await response.text();
+          throw new Error(errorText || `Server error: ${response.status}`);
         }
 
-        // consume the body ONCE
-        const result = await response.json(); 
+        const result = await response.json();
 
-        // Store data for subsequent pages
         localStorage.setItem("currentDocId", result.doc_id);
         localStorage.setItem("uploadedFileName", file.name);
         localStorage.setItem("uploadedFileDate", new Date().toLocaleString());
 
-        // Update UI on success
         loader.classList.add("hidden");
         summarizeBtn.classList.remove("hidden");
 
@@ -217,7 +288,6 @@
       }
     }
 
-    // Event listeners
     selectBtn.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", e => handleFile(e.target.files[0]));
 
@@ -233,7 +303,6 @@
     });
 
     summarizeBtn.addEventListener("click", () => {
-      // Navigate with ID in URL for robust loading
       const docId = localStorage.getItem("currentDocId");
       window.location.href = `summary.html?id=${docId}`;
     });
@@ -261,4 +330,5 @@
     });
   </script>
 </body>
+
 </html>

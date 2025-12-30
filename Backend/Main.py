@@ -1,8 +1,10 @@
 import os
 import shutil
 import sqlite3
+import pymupdf 
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse # Added for downloads
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -17,11 +19,9 @@ STORAGE_DIR = "document_storage"
 DB_PATH = "Database/PrimaryDB.db"
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
-# Initialize global systems
 file_handler = FileHandler()
 rag_system = FullRAGSystem()
 
-# CORS setup for frontend integration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,78 +30,113 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- REQUEST MODELS ---
-class SearchRequest(BaseModel):
-    user_id: str
-    query: str
-    doc_ids: List[str]
+# --- HELPER TO FIND FILE ---
+def find_physical_file(doc_id: str):
+    """Searches the storage directory for any file starting with the doc_id."""
+    for filename in os.listdir(STORAGE_DIR):
+        if filename.startswith(doc_id):
+            return os.path.join(STORAGE_DIR, filename)
+    return None
 
 # --- API ENDPOINTS ---
 
-# Updated main.py snippet for consistency
 @app.post("/preprocess")
 async def preprocess_and_upload(user_id: str = Form("default_user"), file: UploadFile = File(...)):
     os.makedirs(STORAGE_DIR, exist_ok=True)
     
+    # Save with temporary name to process
     temp_path = os.path.join(STORAGE_DIR, file.filename)
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
     try:
-        # file_handler.addFiles now stores the correct original filename in DB
+        # 1. Process via FileHandler (Extracts text and saves to DB)
         extracted_data = file_handler.addFiles(temp_path, user_id)
         doc_id = list(extracted_data.keys())[0]
         raw_text = extracted_data[doc_id]["text"]
 
-        # Rename physical file to doc_id to avoid OS-level naming conflicts
+        # 2. Rename physical file to doc_id (keeping extension)
         ext = os.path.splitext(file.filename)[1]
         final_path = os.path.join(STORAGE_DIR, f"{doc_id}{ext}")
-        
-        # Check if file exists before renaming to prevent errors
-        if os.path.exists(temp_path):
-            os.rename(temp_path, final_path)
+        os.rename(temp_path, final_path)
 
+        # 3. Ingest into RAG
         rag_system.ingest_document(raw_text, doc_id)
         
         return {"doc_id": doc_id, "filename": file.filename, "status": "success"}
     except Exception as e:
         if os.path.exists(temp_path): os.remove(temp_path)
         raise HTTPException(status_code=500, detail=str(e))
-    
-@app.get("/summary")
+
 @app.get("/document/{doc_id}")
-async def get_summary(doc_id: Optional[str] = None):
-    """Fetches summary for summary.html. If no doc_id, gets the latest entry."""
+async def get_summary(doc_id: str):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        if doc_id:
-            cursor.execute("SELECT doc_id, filename, date, summary FROM primarydb WHERE doc_id = ?", (doc_id,))
-        else:
-            cursor.execute("SELECT doc_id, filename, date, summary FROM primarydb ORDER BY id DESC LIMIT 1")
-        
+        cursor.execute("SELECT doc_id, filename, date, summary FROM primarydb WHERE doc_id = ?", (doc_id,))
         row = cursor.fetchone()
         conn.close()
 
         if not row:
             raise HTTPException(status_code=404, detail="Document not found")
 
+        # Calculate metadata from physical file
+        file_path = find_physical_file(doc_id)
+        file_type = "Unknown"
+        file_size = "—"
+        
+        if file_path and os.path.exists(file_path):
+            ext = os.path.splitext(file_path)[1].upper().replace(".", "")
+            file_type = ext
+            
+            # Use pages for PDF, size for others
+            if ext == "PDF":
+                with pymupdf.open(file_path) as doc:
+                    file_size = f"{len(doc)} pages"
+            else:
+                size_kb = os.path.getsize(file_path) / 1024
+                file_size = f"{size_kb:.1f} KB"
+
         return {
             "doc_id": row[0],
             "filename": row[1],
             "date": row[2],
             "summary": row[3],
-            "category": "General" # Placeholder as per frontend expectation
+            "filetype": file_type,
+            "pages": file_size
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/download/{doc_id}")
+async def download_file(doc_id: str):
+    """Endpoint to download the file using its doc_id."""
+    file_path = find_physical_file(doc_id)
+    
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found on server")
+    
+    # Get original filename from DB to restore it for the user
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT filename FROM primarydb WHERE doc_id = ?", (doc_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    original_name = row[0] if row else "document"
+    
+    return FileResponse(
+        path=file_path, 
+        filename=original_name, 
+        media_type='application/octet-stream'
+    )
 
 @app.get("/ask")
 async def ask_question(query: str, doc_ids: Optional[str] = None):
     """Used by summary.html for document-specific Q&A."""
     try:
-        # If no doc_ids provided, find the most recent one
         if not doc_ids:
+            # Fallback to latest if no ID passed
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             cursor.execute("SELECT doc_id FROM primarydb ORDER BY id DESC LIMIT 1")
@@ -109,8 +144,10 @@ async def ask_question(query: str, doc_ids: Optional[str] = None):
             conn.close()
             target_ids = [row[0]] if row else []
         else:
+            # Split the comma-separated string from the URL
             target_ids = doc_ids.split(",")
 
+        # Call RAG search with the specific allowed doc IDs
         answer = rag_system.search(query=query, allowed_doc_ids=target_ids)
         return {"query": query, "answer": answer}
     except Exception as e:
