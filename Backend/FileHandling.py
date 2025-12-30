@@ -16,6 +16,25 @@ from google import genai
 from pathlib import Path
 from datetime import date
 from dotenv import load_dotenv
+from dataclasses import dataclass
+
+
+# Custom typecasting classes
+
+
+@dataclass
+class UserAnalytics:
+    user_id: str
+    time_saved_for_this_doc: float
+
+
+@dataclass
+class PrimarydbData:
+    index: str
+    user_id: str
+    filename: str
+    summary: str
+
 
 # Main Classes #
 
@@ -32,38 +51,125 @@ class GenerationModel:
         self.client = genai.Client(api_key=self.api_key)
 
 
+class DatabaseManager:
+    """This class handles all the database related operations."""
+
+    def __init__(self) -> None:
+        """Initializing the database and creating the tables if not present"""
+
+        with sqlite3.connect("Database/PrimaryDB.db") as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """CREATE TABLE IF NOT EXISTS primarydb (
+                                doc_id TEXT UNIQUE NOT NULL,
+                                user_id TEXT NOT NULL,
+                                filename TEXT NOT NULL,
+                                date TEXT NOT NULL,
+                                summary TEXT NOT NULL
+                                )"""
+            )
+
+            connection.commit()
+
+            cursor.execute(
+                """CREATE TABLE IF NOT EXISTS user_analytics (
+                                user_id TEXT UNIQUE,
+                                total_time_saved_minutes REAL DEFAULT 0,
+                                documents_processed INTEGER DEFAULT 0      
+                                )"""
+            )
+
+            connection.commit()
+
+    def add_data(
+        self,
+        user_analytics: UserAnalytics | None = None,
+        primarydb: PrimarydbData | None = None,
+    ) -> None:
+        """Function responsible for the operations related to addition of data into the database"""
+
+        if not user_analytics and not primarydb:
+            raise ValueError(
+                "Both user_analytics and primarydb parameters can't be None at the same time!"
+            )
+
+        with sqlite3.connect("Database/PrimaryDB.db") as connection:
+            cursor = connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL;")
+
+            if user_analytics:
+
+                cursor.execute(
+                    """
+                INSERT INTO user_analytics (user_id, total_time_saved_minutes, documents_processed)
+                VALUES (?, ?, 1)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    total_time_saved_minutes =
+                        total_time_saved_minutes + excluded.total_time_saved_minutes,
+                    documents_processed =
+                        documents_processed + 1
+                """,
+                    (
+                        user_analytics.user_id,
+                        float(user_analytics.time_saved_for_this_doc),
+                    ),
+                )
+
+            if primarydb:
+
+                # Use original_filename in the INSERT statement
+                cursor.execute(
+                    """
+                    INSERT INTO primarydb (doc_id, user_id, filename, date, summary)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        primarydb.index,
+                        primarydb.user_id,
+                        primarydb.filename,
+                        str(date.today()),
+                        primarydb.summary,
+                    ),
+                )
+
+    def get_data(self, doc_id: str) -> dict:
+        """Function responsible for extracting the data about a file from the database from its doc_id"""
+
+        retrieved_content = {}
+
+        # Initiating database connection
+        with sqlite3.connect("Database/PrimaryDB.db") as connection:
+            cursor = connection.cursor()
+
+            # retrieving the data
+            cursor.execute("SELECT * FROM primarydb WHERE doc_id = ?", (doc_id,))
+            retrieved_data = cursor.fetchall()
+
+        if retrieved_data != []:
+            retrieved_content.update(
+                {
+                    doc_id: {
+                        "index": retrieved_data[0][0],
+                        "user_id": retrieved_data[0][1],
+                        "filename": retrieved_data[0][2],
+                        "upload_date": retrieved_data[0][3],
+                        "summary": retrieved_data[0][4],
+                    }
+                }
+            )
+
+        return retrieved_content  # returning the retrieved content
+
+
 class FileHandler:
     """The class that handles all the main operations."""
 
     def __init__(self) -> None:
-        """Setting up the database and creating an instance of the GenerationModel class and chunking model."""
+        """Creating an instance of the GenerationModel class and chunking model."""
 
         self.model = GenerationModel()
-        self.reader = None  
-
-        self.connection = sqlite3.connect("Database/PrimaryDB.db")
-        self.cursor = self.connection.cursor()
-        self.cursor.execute("PRAGMA journal_mode=WAL;")
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS primarydb (
-                            doc_id TEXT UNIQUE NOT NULL,
-                            user_id TEXT NOT NULL,
-                            filename TEXT NOT NULL,
-                            date TEXT NOT NULL,
-                            summary TEXT NOT NULL
-                            )"""
-        )
-        self.connection.commit()
-
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS user_analytics (
-                            user_id TEXT UNIQUE,
-                            total_time_saved_minutes REAL DEFAULT 0,
-                            documents_processed INTEGER DEFAULT 0      
-                            )"""
-        )
-        self.connection.commit()
-        self.connection.close()
+        self.reader = None
+        self.database_manager = DatabaseManager()
 
     def extract_PDF_text(self, filePath: str) -> str:
         """Function responsible for extracting the text from PDF files."""
@@ -83,7 +189,7 @@ class FileHandler:
             return (
                 text.strip()
             )  # returning the text by removing the trailing white spaces, if any
-        
+
         else:
             raise ValueError("Unsupported pdf file!")
 
@@ -91,7 +197,9 @@ class FileHandler:
         """Function responsible for performing OCR on images to extract text"""
 
         if not self.reader:
-            self.reader = easyocr.Reader(['en']) # Creating the easyocr reader class instance, if doesn't already exist.
+            self.reader = easyocr.Reader(
+                ["en"]
+            )  # Creating the easyocr reader class instance, if doesn't already exist.
 
         text = ""
         text = self.reader.readtext(imagePath)
@@ -102,7 +210,6 @@ class FileHandler:
             return text.strip()
         else:
             raise ValueError("Unsupported image file!")
-
 
     def addFiles(self, file: str, user_id: str) -> dict:
         """Function handling all the processes followed by the uploading of any new file."""
@@ -117,70 +224,41 @@ class FileHandler:
 
             with open(file, "rt", encoding="utf-8", errors="ignore") as f:
                 self.text = f.read()
-            
+
             if not self.text.strip():
                 raise ValueError("Unsupported/empty text file!")
 
         else:
             self.text = self.image_OCR(file)
 
-        # Initiating database connection
-        self.connection = sqlite3.connect("Database/PrimaryDB.db")
-        self.cursor = self.connection.cursor()
-        self.cursor.execute("PRAGMA journal_mode=WAL;")
-
         # Clean ID generation
-        
-        index = f"DOC_{uuid.uuid4().hex[:8]}" 
-        
+
+        index = f"DOC_{uuid.uuid4().hex[:8]}"
+
         try:
-            self.summary = self.compareAndSummarize(docs_summaries_compare=None, doc_text=self.text)
+            self.summary = self.compareAndSummarize(
+                docs_summaries_compare=None, doc_text=self.text
+            )
 
         except Exception as e:
             raise RuntimeError("Summary generation failed!") from e
 
         # Getting the estimated time saved
-        self.time_saved_for_this_doc = self.estimatedTimeSaved(text_words=(len(self.text.split())), summary_words= len(self.summary.split()))
+        self.time_saved_for_this_doc = self.estimatedTimeSaved(
+            text_words=(len(self.text.split())), summary_words=len(self.summary.split())
+        )
 
-        try: # trying to execute the database commands
-
-            self.connection.execute("BEGIN") # establishing the connection
-            self.cursor.execute("""
-            INSERT INTO user_analytics (user_id, total_time_saved_minutes, documents_processed)
-            VALUES (?, ?, 1)
-            ON CONFLICT(user_id) DO UPDATE SET
-                total_time_saved_minutes =
-                    user_analytics.total_time_saved_minutes + excluded.total_time_saved_minutes,
-                documents_processed =
-                    user_analytics.documents_processed + 1
-            """, (user_id, self.time_saved_for_this_doc))
-
-            # Use original_filename in the INSERT statement
-            self.cursor.execute(
-                """
-                INSERT INTO primarydb (doc_id, user_id, filename, date, summary)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    index,
-                    user_id,
-                    os.path.basename(file),
-                    str(date.today()),
-                    self.summary
-                )
-            )
-
-
-            self.connection.commit() # commiting the changes.
-
-        except Exception as e:
-
-            self.connection.rollback() # rolling back the changes in case there was an error
-            raise
-
-        finally:
-            # closing the connection irrespective of whether the commands were executed successfully or not.
-            self.connection.close()
+        self.database_manager.add_data(
+            user_analytics=UserAnalytics(
+                user_id=user_id, time_saved_for_this_doc=self.time_saved_for_this_doc
+            ),
+            primarydb=PrimarydbData(
+                index=index,
+                user_id=user_id,
+                filename=os.path.basename(file),
+                summary=self.summary,
+            ),
+        )
 
         extracted_content.update(
             {
@@ -195,36 +273,6 @@ class FileHandler:
 
         return extracted_content  # returning the data for quick retrieval
 
-    def getFiles(self, doc_id: str) -> dict:
-        """Function responsible for extracting the data about a file from the database from its doc_id"""
-
-        retrieved_content = {}
-
-        # Initiating database connection
-        self.connection = sqlite3.connect("Database/PrimaryDB.db")
-        self.cursor = self.connection.cursor()
-        self.cursor.execute("PRAGMA journal_mode=WAL;")
-
-        # retrieving the data
-        self.cursor.execute("SELECT * FROM primarydb WHERE doc_id = ?", (doc_id,))
-        retrieved_data = self.cursor.fetchall()
-        self.connection.close()
-
-        if retrieved_data != []:
-            retrieved_content.update(
-                {
-                    doc_id: {
-                        "index": retrieved_data[0][0],
-                        "user_id": retrieved_data[0][1],
-                        "filename": retrieved_data[0][2],
-                        "upload_date": retrieved_data[0][3],
-                        "summary": retrieved_data[0][4],
-                    }
-                }
-            )
-
-        return retrieved_content  # returning the retrieved content
-
     def handleFiles(
         self,
         doc_ids: list[str] | None,
@@ -232,13 +280,13 @@ class FileHandler:
         user_id: str | None,
         addFiles: bool = True,
     ) -> dict:
-        """This functions brings together the functionality of both addFiles and getFiles function."""
+        """This functions brings together the functionality of both addFiles and get_data (DatabaseManager class) function."""
 
         if addFiles:
 
             if not files or not user_id:
                 raise ValueError("files and user_id are required when addFiles=True")
-            
+
             self.extracted_content = {}
             for file in files:
                 self.extracted_content.update(self.addFiles(file=file, user_id=user_id))
@@ -246,14 +294,14 @@ class FileHandler:
             return self.extracted_content
 
         else:
-            
+
             if not doc_ids:
                 raise ValueError("doc_ids are required when addFiles=False")
 
             self.retrieved_content = {}
             for doc_id in doc_ids:
 
-                self.retrieved_content.update(self.getFiles(doc_id))
+                self.retrieved_content.update(self.database_manager.get_data(doc_id))
 
             return self.retrieved_content
 
@@ -263,7 +311,7 @@ class FileHandler:
         docs_summaries = []
 
         for doc_id in doc_ids:
-            retrieved_content = self.getFiles(doc_id)
+            retrieved_content = self.database_manager.get_data(doc_id)
             docs_summaries.append((retrieved_content[doc_id])["summary"])
 
         try:
@@ -272,9 +320,9 @@ class FileHandler:
                 doc_text=None,
                 summarize=False,
             )
-        
+
         except Exception as e:
-            raise RuntimeError("Comparision generation failed!") from e
+            raise RuntimeError("Comparision generation failed!") from e 
 
         return self.comparison  # returning the generated comparison
 
@@ -301,25 +349,31 @@ class FileHandler:
 
             comparison = self.model.client.models.generate_content(
                 model="gemini-2.5-flash-lite",
-                contents=prompts.prompt_comparison + "\n\n"
+                contents=prompts.prompt_comparison
+                + "\n\n"
                 + "\n\n".join(docs_summaries_compare),
             )
             return comparison.text
 
     def estimatedTimeSaved(
-            self,
-            text_words:int,
-            summary_words:int,
-            reading_speed:int=180,
-            summary_read_speed:int = 210,
-            summary_gen_time_min:int = 3,
-            semantic_search_time_min:int=1
+        self,
+        text_words: int,
+        summary_words: int,
+        reading_speed: int = 180,
+        summary_read_speed: int = 210,
+        summary_gen_time_min: int = 3,
+        semantic_search_time_min: int = 1,
     ):
-        manual_time = text_words/reading_speed
+        """Function responsible for estimating the amount of time saved per document."""
 
-        summary_read_time = summary_words/summary_read_speed + summary_gen_time_min + semantic_search_time_min
-        print(manual_time)
-        print(summary_read_time)
+        manual_time = text_words / reading_speed
+
+        summary_read_time = (
+            summary_words / summary_read_speed
+            + summary_gen_time_min
+            + semantic_search_time_min
+        )
+
         return max(manual_time - summary_read_time, 0)
 
 
@@ -327,5 +381,4 @@ class FileHandler:
 
 if __name__ == "__main__":
 
-    handler = FileHandler()
-    handler.handleFiles(files=["C:\\Users\\shrey\\Downloads\\Asana.pdf"], user_id="shreyansh", doc_ids=None)
+    ...
