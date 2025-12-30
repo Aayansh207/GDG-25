@@ -92,6 +92,41 @@
       overflow: y-auto;
       overflow: x-hidden;
     }
+
+    /* --- STYLES FOR INJECTED HTML SUMMARY --- */
+    .summary-html-content h3 {
+      font-size: 1.25rem;
+      /* text-xl */
+      font-weight: 700;
+      color: #f9ab00;
+      /* primary color */
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      text-shadow: 0 0 20px rgba(249, 171, 0, 0.4);
+    }
+
+    .summary-html-content ul {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .summary-html-content li {
+      margin-bottom: 0.5rem;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .summary-html-content p {
+      margin-bottom: 1rem;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .summary-html-content strong {
+      color: #4285f4;
+      /* accent color */
+    }
   </style>
 </head>
 
@@ -236,6 +271,7 @@
 
     let currentDocId = null;
 
+    // Helper to format plain text answers from the RAG system
     function formatText(text) {
       if (!text) return "<p class='text-white/60'>No content available.</p>";
       const lines = text.split('\n');
@@ -273,11 +309,19 @@
     async function loadSummary() {
       const urlParams = new URLSearchParams(window.location.search);
       const docId = urlParams.get('id');
+
       if (!docId) return;
 
       currentDocId = docId;
+
+      // Loading State
       fileNameEl.textContent = "Loading...";
-      summaryContent.innerHTML = `<div class="flex flex-col items-center justify-center h-full"><div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"></div><p class="text-lg text-white/70">Loading summary...</p></div>`;
+      summaryContent.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p class="text-lg text-white/70">Loading summary...</p>
+        </div>
+      `;
 
       try {
         const res = await fetch(`http://127.0.0.1:8000/document/${docId}`);
@@ -285,18 +329,27 @@
 
         const data = await res.json();
 
+        // Update Metadata
         fileNameEl.textContent = data.filename || "Untitled Document";
         fileDateEl.textContent = data.date || "Just now";
         fileTypeEl.textContent = data.filetype || "—";
-        fileSizeEl.textContent = data.pages || "—"; // Backend now sends formatted size/pages here
+        fileSizeEl.textContent = data.pages || "—";
 
+        // Enable Download Button
         downloadBtn.disabled = false;
         downloadBtn.classList.remove("opacity-50", "cursor-not-allowed");
 
-        summaryContent.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-primary text-glow">Summary</h2><div class="text-white/90 leading-relaxed text-base">${formatText(data.summary)}</div>`;
+        // Inject Summary as HTML (Direct injection for formatting)
+        summaryContent.innerHTML = `
+          <h2 class="text-2xl font-bold mb-6 text-primary text-glow">Summary</h2>
+          <div class="summary-html-content">
+            ${data.summary}
+          </div>
+        `;
 
-        // FIX: Remove banned cursor and enable Q&A
+        // Unlock Q&A Section
         qaSection.classList.remove('opacity-60');
+        
         searchInput.disabled = false;
         searchInput.classList.remove('cursor-not-allowed', 'text-white/50');
         searchInput.classList.add('text-white');
@@ -308,31 +361,54 @@
         submitBtn.classList.add('bg-accent', 'text-black');
 
       } catch (err) {
-        summaryContent.innerHTML = `<div class="text-center py-12"><p class="text-red-400 text-lg font-semibold">Failed to load document</p><p class="text-white/60 mt-2">${err.message}</p></div>`;
+        summaryContent.innerHTML = `
+          <div class="text-center py-12">
+            <p class="text-red-400 text-lg font-semibold">Failed to load document</p>
+            <p class="text-white/60 mt-2">${err.message}</p>
+          </div>`;
       }
     }
 
     async function askQuestion(query) {
       if (!query.trim() || !currentDocId) return;
 
-      backendBox.innerHTML = `<div class="flex flex-col items-center justify-center gap-4 py-10"><div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div><p class="text-white/70">Thinking...</p></div>`;
+      backendBox.innerHTML = `
+        <div class="flex flex-col items-center justify-center gap-4 py-10">
+          <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-white/70">Thinking...</p>
+        </div>`;
 
       try {
-        // Sync with your query-parameter backend: /ask?query=...&doc_ids=...
+        // Backend expects: /ask?query=...&doc_ids=...
         const res = await fetch(`http://127.0.0.1:8000/ask?query=${encodeURIComponent(query)}&doc_ids=${currentDocId}`);
         if (!res.ok) throw new Error("Server error");
 
         const data = await res.json();
         const answer = data.answer || "No relevant answer found.";
 
-        backendBox.innerHTML = `<div class="flex items-start gap-4"><span class="material-symbols-outlined text-2xl text-accent mt-0.5">auto_awesome</span><div class="flex-1"><h3 class="text-lg font-bold text-accent mb-3">AI Answer</h3><div class="text-white/90 leading-relaxed text-base">${formatText(answer)}</div></div></div>`;
+        backendBox.innerHTML = `
+          <div class="flex items-start gap-4">
+            <span class="material-symbols-outlined text-2xl text-accent mt-0.5">auto_awesome</span>
+            <div class="flex-1">
+              <h3 class="text-lg font-bold text-accent mb-3">AI Answer</h3>
+              <div class="text-white/90 leading-relaxed text-base">
+                ${formatText(answer)}
+              </div>
+            </div>
+          </div>
+        `;
       } catch (err) {
-        backendBox.innerHTML = `<div class="text-red-400 text-center py-8"><p class="text-lg font-semibold">Error</p><p class="mt-2 text-sm">${err.message}</p></div>`;
+        backendBox.innerHTML = `
+          <div class="text-red-400 text-center py-8">
+            <p class="text-lg font-semibold">Error</p>
+            <p class="mt-2 text-sm">${err.message}</p>
+          </div>`;
       }
     }
 
     window.downloadCurrentDocument = function () {
       if (!currentDocId) return alert("No document loaded");
+      // Calls the backend endpoint that serves the physical file
       window.location.href = `http://127.0.0.1:8000/download/${currentDocId}`;
     };
 
@@ -341,7 +417,7 @@
       const query = searchInput.value.trim();
       if (query) {
         askQuestion(query);
-        // FIX: Removed searchInput.value = "" so query stays in the box
+        // We do NOT clear the input so you can see your last question
       }
     });
 
