@@ -43,6 +43,7 @@ class FileHandler:
 
         self.connection = sqlite3.connect("Database/PrimaryDB.db")
         self.cursor = self.connection.cursor()
+        self.cursor.execute("PRAGMA journal_mode=WAL;")
         self.cursor.execute(
             """CREATE TABLE IF NOT EXISTS primarydb (
                             doc_id TEXT UNIQUE NOT NULL,
@@ -77,9 +78,14 @@ class FileHandler:
         text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
         text = re.sub(r"\n{2,}", "\n\n", text)
 
-        return (
-            text.strip()
-        )  # returning the text by removing the trailing white spaces, if any
+        if text.strip():
+
+            return (
+                text.strip()
+            )  # returning the text by removing the trailing white spaces, if any
+        
+        else:
+            raise ValueError("Unsupported pdf file!")
 
     def image_OCR(self, imagePath: str) -> str:
         """Function responsible for performing OCR on images to extract text"""
@@ -92,11 +98,15 @@ class FileHandler:
         lines = [entry[1] for entry in text]
         text = "\n".join(lines)
 
-        return text
+        if text.strip():
+            return text.strip()
+        else:
+            raise ValueError("Unsupported image file!")
+
 
     def addFiles(self, file: str, user_id: str) -> dict:
         """Function handling all the processes followed by the uploading of any new file."""
-        original_filename = os.path.basename(file)
+
         # Extracting the file's text
         extracted_content = {}
 
@@ -107,6 +117,9 @@ class FileHandler:
 
             with open(file, "rt", encoding="utf-8", errors="ignore") as f:
                 self.text = f.read()
+            
+            if not self.text.strip():
+                raise ValueError("Unsupported/empty text file!")
 
         else:
             self.text = self.image_OCR(file)
@@ -114,6 +127,7 @@ class FileHandler:
         # Initiating database connection
         self.connection = sqlite3.connect("Database/PrimaryDB.db")
         self.cursor = self.connection.cursor()
+        self.cursor.execute("PRAGMA journal_mode=WAL;")
 
         # Clean ID generation
         
@@ -123,7 +137,7 @@ class FileHandler:
             self.summary = self.compareAndSummarize(docs_summaries_compare=None, doc_text=self.text)
 
         except Exception as e:
-            raise RuntimeError("Summarization / Comparision generation failed!") from e
+            raise RuntimeError("Summary generation failed!") from e
 
         # Getting the estimated time saved
         self.time_saved_for_this_doc = self.estimatedTimeSaved(text_words=(len(self.text.split())), summary_words= len(self.summary.split()))
@@ -174,7 +188,6 @@ class FileHandler:
                     "index": index,
                     "filename": os.path.basename(file),
                     "upload_date": str(date.today()),
-                    "text": self.text,
                     "summary": self.summary,
                 }
             }
@@ -190,6 +203,7 @@ class FileHandler:
         # Initiating database connection
         self.connection = sqlite3.connect("Database/PrimaryDB.db")
         self.cursor = self.connection.cursor()
+        self.cursor.execute("PRAGMA journal_mode=WAL;")
 
         # retrieving the data
         self.cursor.execute("SELECT * FROM primarydb WHERE doc_id = ?", (doc_id,))
@@ -217,7 +231,7 @@ class FileHandler:
         files: list[str] | None,
         user_id: str | None,
         addFiles: bool = True,
-    ):
+    ) -> dict:
         """This functions brings together the functionality of both addFiles and getFiles function."""
 
         if addFiles:
@@ -260,7 +274,7 @@ class FileHandler:
             )
         
         except Exception as e:
-            raise RuntimeError("Summarization / Comparision generation failed!") from e
+            raise RuntimeError("Comparision generation failed!") from e
 
         return self.comparison  # returning the generated comparison
 

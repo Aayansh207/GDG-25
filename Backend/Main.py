@@ -53,7 +53,7 @@ async def preprocess_and_upload(user_id: str = Form("default_user"), file: Uploa
         # 1. Process via FileHandler (Extracts text and saves to DB)
         extracted_data = file_handler.addFiles(temp_path, user_id)
         doc_id = list(extracted_data.keys())[0]
-        raw_text = extracted_data[doc_id]["text"]
+        raw_text = file_handler.text
 
         # 2. Rename physical file to doc_id (keeping extension)
         ext = os.path.splitext(file.filename)[1]
