@@ -89,15 +89,14 @@
     }
 
     .scroll-container {
-      overflow:y-auto;
-      overflow:x-hidden;
+      overflow: y-auto;
+      overflow: x-hidden;
     }
   </style>
 </head>
 
 <body class="font-display flex flex-col min-h-screen text-white">
 
-  <!-- Video Background -->
   <div id="video-bg">
     <video autoplay muted loop playsinline preload="auto">
       <source src="./O.mp4" type="video/mp4">
@@ -105,7 +104,6 @@
     </video>
   </div>
 
-  <!-- FIXED SIDEBAR -->
   <aside
     class="fixed inset-y-0 left-0 w-20 flex flex-col items-center bg-nav_bg/80 backdrop-blur-custom border-r border-white/10 z-20">
     <div class="text-primary flex items-center justify-center py-6">
@@ -146,7 +144,6 @@
     </nav>
   </aside>
 
-  <!-- Main Content -->
   <main class="ml-20 flex-1 pt-5 pb-10 px-5 md:pt-8 md:px-10 scroll-container min-h-screen">
 
     <div class="max-w-4xl mx-auto w-full flex flex-col gap-8">
@@ -156,7 +153,6 @@
         <p class="text-white/60 text-base mt-2">AI-powered insights and Q&A</p>
       </div>
 
-      <!-- Document Info -->
       <div
         class="bg-surface/80 backdrop-blur-custom rounded-xl p-5 md:p-6 border border-primary/40 shadow-glow-primary/30">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -186,11 +182,9 @@
         </div>
       </div>
 
-      <!-- Summary Box - Left-aligned content -->
       <div id="summary-box"
         class="bg-surface/80 backdrop-blur-custom rounded-xl p-5 md:p-6 border border-white/10 min-h-[350px]">
         <div id="summary-content" class="h-full">
-          <!-- Default empty state (centered) -->
           <div class="flex flex-col items-center justify-center h-full text-center">
             <span class="material-symbols-outlined text-6xl text-white/30 mb-4">description</span>
             <p class="text-xl text-white/60 font-medium">No document selected</p>
@@ -204,7 +198,6 @@
         </div>
       </div>
 
-      <!-- Ask AI Section -->
       <div class="bg-surface/80 backdrop-blur-custom rounded-xl p-5 md:p-6 border border-white/10 opacity-60"
         id="qa-section">
         <h2 class="text-2xl font-bold mb-5 text-primary text-glow-soft flex items-center gap-3">
@@ -243,26 +236,20 @@
 
     let currentDocId = null;
 
-    // Convert plain text bullets/numbers to proper HTML lists
     function formatText(text) {
       if (!text) return "<p class='text-white/60'>No content available.</p>";
-
       const lines = text.split('\n');
       let html = '';
       let inList = false;
-      let listType = 'ul'; // 'ul' or 'ol'
+      let listType = 'ul';
 
       lines.forEach(line => {
         line = line.trim();
         if (!line) {
-          if (inList) {
-            html += '</' + listType + '>';
-            inList = false;
-          }
+          if (inList) { html += '</' + listType + '>'; inList = false; }
           html += '<p class="my-3"></p>';
           return;
         }
-
         const isBullet = line.match(/^[-*•]\s+/);
         const isNumbered = line.match(/^\d+\.\s+/);
 
@@ -271,22 +258,14 @@
             listType = isNumbered ? 'ol' : 'ul';
             html += `<${listType} class="list-disc pl-6 my-3 space-y-1">`;
             inList = true;
-          } else if ((listType === 'ol' && isBullet) || (listType === 'ul' && isNumbered)) {
-            html += '</' + listType + '>';
-            listType = isNumbered ? 'ol' : 'ul';
-            html += `<${listType} class="list-disc pl-6 my-3 space-y-1">`;
           }
           const item = line.replace(/^[-*•]\s+/, '').replace(/^\d+\.\s+/, '');
           html += `<li class="text-white/90 leading-relaxed">${item}</li>`;
         } else {
-          if (inList) {
-            html += '</' + listType + '>';
-            inList = false;
-          }
+          if (inList) { html += '</' + listType + '>'; inList = false; }
           html += `<p class="my-3 text-white/90 leading-relaxed">${line}</p>`;
         }
       });
-
       if (inList) html += '</' + listType + '>';
       return html;
     }
@@ -294,19 +273,11 @@
     async function loadSummary() {
       const urlParams = new URLSearchParams(window.location.search);
       const docId = urlParams.get('id');
-
-      if (!docId) return; // Keep empty state
+      if (!docId) return;
 
       currentDocId = docId;
-
-      // Loading state
       fileNameEl.textContent = "Loading...";
-      summaryContent.innerHTML = `
-        <div class="flex flex-col items-center justify-center h-full">
-          <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p class="text-lg text-white/70">Loading summary...</p>
-        </div>
-      `;
+      summaryContent.innerHTML = `<div class="flex flex-col items-center justify-center h-full"><div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"></div><p class="text-lg text-white/70">Loading summary...</p></div>`;
 
       try {
         const res = await fetch(`http://127.0.0.1:8000/document/${docId}`);
@@ -317,79 +288,52 @@
         fileNameEl.textContent = data.filename || "Untitled Document";
         fileDateEl.textContent = data.date || "Just now";
         fileTypeEl.textContent = data.filetype || "—";
-        fileSizeEl.textContent = data.pages ? `${data.pages} pages` : "—";
+        fileSizeEl.textContent = data.pages || "—"; // Backend now sends formatted size/pages here
 
         downloadBtn.disabled = false;
         downloadBtn.classList.remove("opacity-50", "cursor-not-allowed");
 
-        // Summary with heading and left-aligned content
-        summaryContent.innerHTML = `
-          <h2 class="text-2xl font-bold mb-6 text-primary text-glow">Summary</h2>
-          <div class="text-white/90 leading-relaxed text-base">
-            ${formatText(data.summary)}
-          </div>
-        `;
+        summaryContent.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-primary text-glow">Summary</h2><div class="text-white/90 leading-relaxed text-base">${formatText(data.summary)}</div>`;
 
-        // Enable Q&A
+        // FIX: Remove banned cursor and enable Q&A
         qaSection.classList.remove('opacity-60');
         searchInput.disabled = false;
+        searchInput.classList.remove('cursor-not-allowed', 'text-white/50');
+        searchInput.classList.add('text-white');
         searchInput.placeholder = "Ask about this document...";
-        qaForm.querySelector('button').disabled = false;
-        qaForm.querySelector('button').classList.remove('bg-accent/50', 'text-black/50', 'cursor-not-allowed');
+        
+        const submitBtn = qaForm.querySelector('button');
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('bg-accent/50', 'text-black/50', 'cursor-not-allowed');
+        submitBtn.classList.add('bg-accent', 'text-black');
 
       } catch (err) {
-        summaryContent.innerHTML = `
-          <div class="text-center py-12">
-            <p class="text-red-400 text-lg font-semibold">Failed to load document</p>
-            <p class="text-white/60 mt-2">${err.message}</p>
-          </div>`;
+        summaryContent.innerHTML = `<div class="text-center py-12"><p class="text-red-400 text-lg font-semibold">Failed to load document</p><p class="text-white/60 mt-2">${err.message}</p></div>`;
       }
     }
 
     async function askQuestion(query) {
       if (!query.trim() || !currentDocId) return;
 
-      backendBox.innerHTML = `
-        <div class="flex flex-col items-center justify-center gap-4 py-10">
-          <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-          <p class="text-white/70">Thinking...</p>
-        </div>`;
+      backendBox.innerHTML = `<div class="flex flex-col items-center justify-center gap-4 py-10"><div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div><p class="text-white/70">Thinking...</p></div>`;
 
       try {
-        const res = await fetch(`http://127.0.0.1:8000/ask?doc_ids=${currentDocId}&query=${encodeURIComponent(query)}`);
+        // Sync with your query-parameter backend: /ask?query=...&doc_ids=...
+        const res = await fetch(`http://127.0.0.1:8000/ask?query=${encodeURIComponent(query)}&doc_ids=${currentDocId}`);
         if (!res.ok) throw new Error("Server error");
 
         const data = await res.json();
         const answer = data.answer || "No relevant answer found.";
 
-        backendBox.innerHTML = `
-          <div class="flex items-start gap-4">
-            <span class="material-symbols-outlined text-2xl text-accent mt-0.5">auto_awesome</span>
-            <div class="flex-1">
-              <h3 class="text-lg font-bold text-accent mb-3">AI Answer</h3>
-              <div class="text-white/90 leading-relaxed text-base">
-                ${formatText(answer)}
-              </div>
-            </div>
-          </div>
-        `;
+        backendBox.innerHTML = `<div class="flex items-start gap-4"><span class="material-symbols-outlined text-2xl text-accent mt-0.5">auto_awesome</span><div class="flex-1"><h3 class="text-lg font-bold text-accent mb-3">AI Answer</h3><div class="text-white/90 leading-relaxed text-base">${formatText(answer)}</div></div></div>`;
       } catch (err) {
-        backendBox.innerHTML = `
-          <div class="text-red-400 text-center py-8">
-            <p class="text-lg font-semibold">Error</p>
-            <p class="mt-2 text-sm">${err.message}</p>
-          </div>`;
+        backendBox.innerHTML = `<div class="text-red-400 text-center py-8"><p class="text-lg font-semibold">Error</p><p class="mt-2 text-sm">${err.message}</p></div>`;
       }
     }
 
     window.downloadCurrentDocument = function () {
       if (!currentDocId) return alert("No document loaded");
-      const a = document.createElement('a');
-      a.href = `http://127.0.0.1:8000/download/${currentDocId}`;
-      a.download = fileNameEl.textContent;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      window.location.href = `http://127.0.0.1:8000/download/${currentDocId}`;
     };
 
     qaForm.addEventListener("submit", e => {
@@ -397,7 +341,7 @@
       const query = searchInput.value.trim();
       if (query) {
         askQuestion(query);
-        searchInput.value = "";
+        // FIX: Removed searchInput.value = "" so query stays in the box
       }
     });
 
