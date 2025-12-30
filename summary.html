@@ -356,7 +356,7 @@
         </div>`;
 
       try {
-        const res = await fetch(`http://127.0.0.1:8000/ask/${currentDocId}?query=${encodeURIComponent(query)}`);
+        const res = await fetch(`http://127.0.0.1:8000/ask?doc_ids=${currentDocId}&query=${encodeURIComponent(query)}`);
         if (!res.ok) throw new Error("Server error");
 
         const data = await res.json();
