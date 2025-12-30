@@ -15,6 +15,11 @@ Do NOT use buzzwords, marketing language, or vague wording
 Do NOT add interpretations, opinions, assumptions, or external context
 Do NOT reference the document structure, sections, or the summarization process
 Do NOT repeat information unless repetition is required for clarity or continuity
+In your response, only provide the summary and nothing else.
+Make sure the summary has all the important details on the original document.
+Do NOT include triple backticks (```), language identifiers (such as "html"), or fenced code blocks
+The response must start immediately with an HTML tag
+The response must end immediately with an HTML tag
 
 Content requirements:
 
@@ -36,7 +41,7 @@ Structural and presentation rules:
 Use <h3> tags only for clearly distinguishable major themes or phases
 Use <h4> tags sparingly for sub-points within a major theme when helpful
 Use <p> tags for narrative, chronological, or descriptive content
-Use <ul> and <li> ONLY when listing discrete items such as actions, findings, or recommendations
+Use <ul> and <li> when listing discrete items such as actions, findings, or recommendations etc
 Avoid overuse of bullet points; prefer paragraphs where information flows naturally
 Use <strong> tags selectively to emphasize:
 - key events
