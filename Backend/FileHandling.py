@@ -10,6 +10,7 @@ import easyocr
 import sqlite3
 import re
 import prompts
+import uuid
 
 from google import genai
 from pathlib import Path
@@ -38,12 +39,12 @@ class FileHandler:
         """Setting up the database and creating an instance of the GenerationModel class and chunking model."""
 
         self.model = GenerationModel()
+        self.reader = None  
 
         self.connection = sqlite3.connect("Database/PrimaryDB.db")
         self.cursor = self.connection.cursor()
         self.cursor.execute(
             """CREATE TABLE IF NOT EXISTS primarydb (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                             doc_id TEXT UNIQUE NOT NULL,
                             user_id TEXT NOT NULL,
                             filename TEXT NOT NULL,
@@ -57,7 +58,7 @@ class FileHandler:
             """CREATE TABLE IF NOT EXISTS user_analytics (
                             user_id TEXT UNIQUE,
                             total_time_saved_minutes REAL DEFAULT 0,
-                            documents_processed INTEGER DEFAULT 0,      
+                            documents_processed INTEGER DEFAULT 0      
                             )"""
         )
         self.connection.commit()
@@ -83,12 +84,13 @@ class FileHandler:
     def image_OCR(self, imagePath: str) -> str:
         """Function responsible for performing OCR on images to extract text"""
 
-        reader = easyocr.Reader(["en"])  # Creating the easyocr reader class instance.
+        if not self.reader:
+            self.reader = easyocr.Reader(['en']) # Creating the easyocr reader class instance, if doesn't already exist.
 
         text = ""
-        text = reader.readtext(imagePath)
+        text = self.reader.readtext(imagePath)
         lines = [entry[1] for entry in text]
-        text += "\n".join(lines)
+        text = "\n".join(lines)
 
         return text
 
@@ -112,45 +114,59 @@ class FileHandler:
         # Initiating database connection
         self.connection = sqlite3.connect("Database/PrimaryDB.db")
         self.cursor = self.connection.cursor()
-        self.cursor.execute("SELECT COUNT(*) FROM primarydb")
-        total_entries = self.cursor.fetchone()[0]
 
         # Clean ID generation
-        index = f"DOC_{total_entries + 1:03d}" 
+        
+        index = f"DOC_{uuid.uuid4().hex[:8]}" 
+        
+        try:
+            self.summary = self.compareAndSummarize(docs_summaries_compare=None, doc_text=self.text)
 
-        self.summary = self.compareAndSummarize(docs_summaries_compare=None, doc_text=self.text)
+        except Exception as e:
+            raise RuntimeError("Summarization / Comparision generation failed!") from e
 
         # Getting the estimated time saved
         self.time_saved_for_this_doc = self.estimatedTimeSaved(text_words=(len(self.text.split())), summary_words= len(self.summary.split()))
-        
-        self.cursor.execute(f"""
-UPDATE user_analytics
-SET
-  total_time_saved_minutes = total_time_saved_minutes + {self.time_saved_for_this_doc},
-  documents_processed = documents_processed + 1,
-WHERE user_id = {user_id};
-"""
-        )
-        self.connection.commit()
 
-        # Use original_filename in the INSERT statement
-        self.cursor.execute(
-            """
-            INSERT INTO primarydb
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                index,
-                user_id,
-                os.path.basename(file),
-                str(date.today()),
-                self.summary
+        try: # trying to execute the database commands
+
+            self.connection.execute("BEGIN") # establishing the connection
+            self.cursor.execute("""
+            INSERT INTO user_analytics (user_id, total_time_saved_minutes, documents_processed)
+            VALUES (?, ?, 1)
+            ON CONFLICT(user_id) DO UPDATE SET
+                total_time_saved_minutes =
+                    user_analytics.total_time_saved_minutes + excluded.total_time_saved_minutes,
+                documents_processed =
+                    user_analytics.documents_processed + 1
+            """, (user_id, self.time_saved_for_this_doc))
+
+            # Use original_filename in the INSERT statement
+            self.cursor.execute(
+                """
+                INSERT INTO primarydb (doc_id, user_id, filename, date, summary)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    index,
+                    user_id,
+                    os.path.basename(file),
+                    str(date.today()),
+                    self.summary
+                )
             )
-        )
 
 
-        self.connection.commit()
-        self.connection.close()
+            self.connection.commit() # commiting the changes.
+
+        except Exception as e:
+
+            self.connection.rollback() # rolling back the changes in case there was an error
+            raise
+
+        finally:
+            # closing the connection irrespective of whether the commands were executed successfully or not.
+            self.connection.close()
 
         extracted_content.update(
             {
@@ -177,7 +193,6 @@ WHERE user_id = {user_id};
 
         # retrieving the data
         self.cursor.execute("SELECT * FROM primarydb WHERE doc_id = ?", (doc_id,))
-        self.cursor.execute("SELECT * FROM primarydb WHERE doc_id = ?", (doc_id,))
         retrieved_data = self.cursor.fetchall()
         self.connection.close()
 
@@ -185,11 +200,11 @@ WHERE user_id = {user_id};
             retrieved_content.update(
                 {
                     doc_id: {
-                        "index": retrieved_data[1],
-                        "user_id": retrieved_data[2],
-                        "filename": retrieved_data[3],
-                        "upload_date": retrieved_data[4],
-                        "summary": retrieved_data[5],
+                        "index": retrieved_data[0][0],
+                        "user_id": retrieved_data[0][1],
+                        "filename": retrieved_data[0][2],
+                        "upload_date": retrieved_data[0][3],
+                        "summary": retrieved_data[0][4],
                     }
                 }
             )
@@ -206,18 +221,27 @@ WHERE user_id = {user_id};
         """This functions brings together the functionality of both addFiles and getFiles function."""
 
         if addFiles:
+
+            if not files or not user_id:
+                raise ValueError("files and user_id are required when addFiles=True")
+            
             self.extracted_content = {}
             for file in files:
                 self.extracted_content.update(self.addFiles(file=file, user_id=user_id))
 
             return self.extracted_content
 
-        self.retrieved_content = {}
-        for doc_id in doc_ids:
+        else:
+            
+            if not doc_ids:
+                raise ValueError("doc_ids are required when addFiles=False")
 
-            self.retrieved_content.update(self.getFiles(doc_id))
+            self.retrieved_content = {}
+            for doc_id in doc_ids:
 
-        return self.retrieved_content
+                self.retrieved_content.update(self.getFiles(doc_id))
+
+            return self.retrieved_content
 
     def compareDocs(self, doc_ids: list[str]) -> str:
         """Function that is responsible for generating the comparison between any two or more documents"""
@@ -228,11 +252,15 @@ WHERE user_id = {user_id};
             retrieved_content = self.getFiles(doc_id)
             docs_summaries.append((retrieved_content[doc_id])["summary"])
 
-        self.comparison = self.compareAndSummarize(
-            docs_summaries_compare=docs_summaries,
-            doc_text=None,
-            summarize=False,
-        )
+        try:
+            self.comparison = self.compareAndSummarize(
+                docs_summaries_compare=docs_summaries,
+                doc_text=None,
+                summarize=False,
+            )
+        
+        except Exception as e:
+            raise RuntimeError("Summarization / Comparision generation failed!") from e
 
         return self.comparison  # returning the generated comparison
 
@@ -250,7 +278,6 @@ WHERE user_id = {user_id};
             # generating the main summary
             summary = self.model.client.models.generate_content(
                 model="gemini-2.5-flash-lite",
-                model="gemini-2.5-flash-lite",
                 contents=prompts.prompt_summary_new + "\n\n" + doc_text,
             )
             return summary.text  # returning the summary text
@@ -260,8 +287,7 @@ WHERE user_id = {user_id};
 
             comparison = self.model.client.models.generate_content(
                 model="gemini-2.5-flash-lite",
-                model="gemini-2.5-flash-lite",
-                contents=prompts.prompt_comparison
+                contents=prompts.prompt_comparison + "\n\n"
                 + "\n\n".join(docs_summaries_compare),
             )
             return comparison.text
@@ -278,7 +304,8 @@ WHERE user_id = {user_id};
         manual_time = text_words/reading_speed
 
         summary_read_time = summary_words/summary_read_speed + summary_gen_time_min + semantic_search_time_min
-
+        print(manual_time)
+        print(summary_read_time)
         return max(manual_time - summary_read_time, 0)
 
 
@@ -286,15 +313,5 @@ WHERE user_id = {user_id};
 
 if __name__ == "__main__":
 
-    import time
-
-    start1 = time.time()
     handler = FileHandler()
-    end1 = time.time()
-    print("elapsed 1:", end1 - start1)
-    summary = handler.compareAndSummarize(
-        docs_summaries_compare=None, doc_text=handler.extract_PDF_text(filePath="")
-    )
-    print(summary)
-    ed2 = time.time()
-    print("final elapsed ", ed2 - start1)
+    handler.handleFiles(files=["C:\\Users\\shrey\\Downloads\\Asana.pdf"], user_id="shreyansh", doc_ids=None)
