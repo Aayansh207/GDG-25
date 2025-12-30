@@ -52,15 +52,6 @@ class FileHandler:
                             )"""
         )
         self.connection.commit()
-
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS user_analytics (
-                            user_id TEXT UNIQUE,
-                            total_time_saved_minutes REAL DEFAULT 0,
-                            documents_processed INTEGER DEFAULT 0,      
-                            )"""
-        )
-        self.connection.commit()
         self.connection.close()
 
     def extract_PDF_text(self, filePath: str) -> str:
@@ -120,19 +111,6 @@ class FileHandler:
 
         self.summary = self.compareAndSummarize(docs_summaries_compare=None, doc_text=self.text)
 
-        # Getting the estimated time saved
-        self.time_saved_for_this_doc = self.estimatedTimeSaved(text_words=(len(self.text.split())), summary_words= len(self.summary.split()))
-        
-        self.cursor.execute(f"""
-UPDATE user_analytics
-SET
-  total_time_saved_minutes = total_time_saved_minutes + {self.time_saved_for_this_doc},
-  documents_processed = documents_processed + 1,
-WHERE user_id = {user_id};
-"""
-        )
-        self.connection.commit()
-
         # Use original_filename in the INSERT statement
         self.cursor.execute(
             """
@@ -147,7 +125,6 @@ WHERE user_id = {user_id};
                 self.summary
             )
         )
-
 
         self.connection.commit()
         self.connection.close()
@@ -265,21 +242,6 @@ WHERE user_id = {user_id};
                 + "\n\n".join(docs_summaries_compare),
             )
             return comparison.text
-
-    def estimatedTimeSaved(
-            self,
-            text_words:int,
-            summary_words:int,
-            reading_speed:int=180,
-            summary_read_speed:int = 210,
-            summary_gen_time_min:int = 3,
-            semantic_search_time_min:int=1
-    ):
-        manual_time = text_words/reading_speed
-
-        summary_read_time = summary_words/summary_read_speed + summary_gen_time_min + semantic_search_time_min
-
-        return max(manual_time - summary_read_time, 0)
 
 
 # Testing
