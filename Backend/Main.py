@@ -135,8 +135,8 @@ async def download_file(doc_id: str):
 async def ask_question(query: str, doc_ids: Optional[str] = None):
     """Used by summary.html for document-specific Q&A."""
     try:
-        # If no doc_ids provided, find the most recent one
         if not doc_ids:
+            # Fallback to latest if no ID passed
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             cursor.execute("SELECT doc_id FROM primarydb ORDER BY id DESC LIMIT 1")
@@ -144,8 +144,10 @@ async def ask_question(query: str, doc_ids: Optional[str] = None):
             conn.close()
             target_ids = [row[0]] if row else []
         else:
+            # Split the comma-separated string from the URL
             target_ids = doc_ids.split(",")
 
+        # Call RAG search with the specific allowed doc IDs
         answer = rag_system.search(query=query, allowed_doc_ids=target_ids)
         return {"query": query, "answer": answer}
     except Exception as e:
