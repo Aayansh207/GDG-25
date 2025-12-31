@@ -5,9 +5,22 @@ from sentence_transformers import SentenceTransformer, CrossEncoder
 from nltk.tokenize import sent_tokenize
 from dotenv import load_dotenv
 from pinecone import Pinecone
-from google import genai  # Ensure you ran: pip install google-genai
+from google import genai
+from pathlib import Path  # Add this import
 
-load_dotenv()
+# --- FIX: Explicitly load the correct .env file ---
+# Get the absolute path to the directory containing this script
+base_dir = Path(__file__).parent
+
+# Try loading 'API_key.env' (from FileHandling) OR standard '.env'
+# If your file is named 'API_key.env', use that. If it's '.env', use that.
+env_path = base_dir / "API_key.env" 
+
+if not env_path.exists():
+    env_path = base_dir / ".env" # Fallback to standard .env
+
+load_dotenv(env_path)
+# --------------------------------------------------
 
 # ===================== NLTK SETUP =====================
 try:
@@ -21,13 +34,16 @@ class FullRAGSystem:
         self.embed_model = SentenceTransformer("all-MiniLM-L6-v2")
         self.reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
-        # 2. Gemini Setup (Fixed model name to 1.5-flash)
-        google_api_key = os.getenv("GOOGLE_API_KEY")
+        # 2. Gemini Setup
+        google_api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
         if not google_api_key:
-            raise RuntimeError("GOOGLE_API_KEY missing in .env")
+            # Debugging help: print where it looked
+            print(f"DEBUG: Looking for .env at: {env_path}")
+            print(f"DEBUG: File exists? {env_path.exists()}")
+            raise RuntimeError("GOOGLE_API_KEY (or GEMINI_API_KEY) missing in .env")
+        
         self.client = genai.Client(api_key=google_api_key)
         self.llm_model_id = "gemini-2.5-flash-lite"
-
         # 3. Pinecone Setup
         pinecone_key = os.getenv("PINECONE_API_KEY")
         if not pinecone_key:
