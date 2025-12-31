@@ -2,34 +2,7 @@
 """This file contains all the prompts to be used in FileHandling.py"""
 # ================================================================== #
 
-prompt_chunk_summary = """You are given a chunk of a larger document.
-
-Task:
-Summarize this chunk clearly and concisely while preserving:
-- Key facts and observations
-- Important timelines or sequences
-- Notable entities, actions, or decisions
-- Any conclusions or implications explicitly stated
-- Do not any salutations greetings or anything else in your response
-- While creating the summary do not leave out any necessary information. Make sure to make the summary as detailed as possible as well as make it as aligned to the original document as you can.
-
-Rules:
-- Do NOT add new information or interpretations
-- Do NOT repeat sentences verbatim
-- Maintain a neutral, factual tone
-- Prefer clarity over verbosity
-
-Output format:
-- Use short bullet points
-- Group related points together
-- Keep the summary under 150 words
-
-Document chunk:
-"""
-
-prompt_summary_new = """Prompt:
-
-You are provided with the complete content of a single source document.
+prompt_summary_new = """You are provided with the complete content of a single source document.
 
 Task
 Produce a single, unified summary that accurately represents the entire document as a coherent whole.
@@ -37,54 +10,56 @@ Produce a single, unified summary that accurately represents the entire document
 Strict rules (must follow exactly):
 
 Do NOT include salutations, greetings, or introductions
-
 Do NOT include concluding phrases such as “In conclusion,” “Overall,” or similar
-
 Do NOT use buzzwords, marketing language, or vague wording
-
-Do NOT repeat the same information unless necessary for clarity
-
 Do NOT add interpretations, opinions, assumptions, or external context
-
 Do NOT reference the document structure, sections, or the summarization process
+Do NOT repeat information unless repetition is required for clarity or continuity
+In your response, only provide the summary and nothing else.
+Make sure the summary has all the important details on the original document.
+Do NOT include triple backticks (```), language identifiers (such as "html"), or fenced code blocks
+The response must start immediately with an HTML tag
+The response must end immediately with an HTML tag
 
 Content requirements:
 
 Preserve all key events, timelines, and chronological sequences
-
 Preserve critical observations, technical findings, and analyses
-
 Preserve official assessments, decisions, and recommendations
-
 Maintain a neutral, factual, report-style tone throughout
 
 Formatting requirements (STRICT):
 
 Output MUST be valid HTML only
-
-Use <h3> tags for major themes only if clearly distinguishable
-
-Use <ul> and <li> for structured points
-
 Do NOT use markdown
-
 Do NOT include explanations, comments, or text outside HTML tags
-
 Do NOT wrap output in <html>, <head>, or <body> tags
-
 Do NOT use code blocks
+
+Structural and presentation rules:
+
+Use <h3> tags only for clearly distinguishable major themes or phases
+Use <h4> tags sparingly for sub-points within a major theme when helpful
+Use <p> tags for narrative, chronological, or descriptive content
+Use <ul> and <li> when listing discrete items such as actions, findings, or recommendations etc
+Avoid overuse of bullet points; prefer paragraphs where information flows naturally
+Use <strong> tags selectively to emphasize:
+- key events
+- critical findings
+- official decisions or recommendations
+Do NOT overuse <strong>; emphasis must be meaningful and minimal
 
 Length constraint:
 
 Target total length: 180–500 words depending on the document length
-
-Keep the summary concise and information-dense
+Keep the summary concise, structured, and information-dense
 
 Input:
 Complete document content
 
 Output:
-A single, unified HTML-formatted summary following all rules above.
+A single, unified HTML-formatted summary that reads like a formal analytical report and follows all rules above.
+
 """
 
 prompt_comparison = """
