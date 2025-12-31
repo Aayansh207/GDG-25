@@ -12,6 +12,10 @@
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
     rel="stylesheet" />
 
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-analytics-compat.js"></script>
+
   <script id="tailwind-config">
     tailwind.config = {
       darkMode: "class",
@@ -52,6 +56,7 @@
       min-height: 100dvh;
       margin: 0;
       background-color: #000000;
+      overflow-x: hidden;
     }
 
     #video-bg {
@@ -89,15 +94,39 @@
     }
 
     .scroll-container {
-      overflow:y-auto;
-      overflow:x-hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    #scaled-sidebar {
+      transform: scale(0.8);
+      transform-origin: top left;
+      width: 80px;
+      height: 125%;
+    }
+
+    main {
+      margin-left: 80px;
+    }
+
+    #auth-wrapper {
+      transform: scale(0.8);
+      transform-origin: top right;
+    }
+
+    /* Chevron rotation for dropdown */
+    #chevron-icon {
+      transition: transform 0.3s ease;
+    }
+
+    #chevron-icon.rotate-180 {
+      transform: rotate(180deg);
     }
   </style>
 </head>
 
 <body class="font-display flex flex-col min-h-screen text-white">
 
-  <!-- Video Background -->
   <div id="video-bg">
     <video autoplay muted loop playsinline preload="auto">
       <source src="./M.mp4" type="video/mp4">
@@ -105,13 +134,90 @@
     </video>
   </div>
 
-  <!-- FIXED SIDEBAR - Matches index.html exactly -->
-  <aside
-    class="fixed inset-y-0 left-0 w-20 flex flex-col items-center bg-nav_bg/80 backdrop-blur-custom border-r border-white/10 z-20">
+  <!-- Authentication section wrapped + counter-scaled -->
+  <div id="auth-wrapper" class="absolute top-5 right-6 z-[100] flex items-center gap-3">
+    <div id="auth-guest" class="flex items-center gap-3">
+      <button id="login-btn"
+        class="flex items-center gap-2 bg-accent hover:bg-accent/90 text-black font-semibold px-6 py-2.5 rounded-full transition-all duration-300 shadow-glow-accent hover:shadow-glow-primary hover:scale-[1.02] active:scale-95">
+        <span class="material-symbols-outlined">login</span>
+        <span class="hidden sm:inline">Sign in / Sign up</span>
+      </button>
+    </div>
+
+    <div id="profile-btn" class="hidden relative">
+      <button id="profile-toggle-btn" class="flex items-center gap-3 bg-gradient-to-r from-accent/20 to-primary/10 hover:from-accent/30 hover:to-primary/20 
+               backdrop-blur-md border border-accent/40 hover:border-accent/70 text-white font-medium 
+               px-5 py-2.5 rounded-full transition-all duration-300 shadow-glow-accent hover:shadow-glow-primary 
+               hover:scale-[1.03] active:scale-[0.98]">
+
+        <div class="relative">
+          <img id="user-photo" class="w-10 h-10 rounded-full object-cover border-2 border-accent/80 shadow-md" src=""
+            alt="User" />
+          <span
+            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-surface shadow-sm"></span>
+        </div>
+
+        <div class="flex flex-col items-start text-left leading-tight">
+          <span id="user-name" class="font-semibold tracking-tight max-w-[160px] truncate">...</span>
+          <span id="user-email" class="text-xs text-white/65 max-w-[160px] truncate">...</span>
+        </div>
+
+        <span id="chevron-icon"
+          class="material-symbols-outlined text-xl text-white/70 transition-transform duration-300">
+          expand_more
+        </span>
+      </button>
+
+      <!-- Dropdown – controlled by JS class -->
+      <div id="profile-dropdown" class="absolute right-0 mt-3 w-80 bg-surface/95 backdrop-blur-xl border border-accent/30 rounded-2xl shadow-2xl 
+               opacity-0 scale-95 pointer-events-none transition-all duration-200 origin-top-right
+               [&.is-open]:opacity-100 [&.is-open]:scale-100 [&.is-open]:pointer-events-auto">
+
+        <div class="px-6 py-5">
+          <div class="flex items-center gap-4">
+            <img id="user-photo-big" class="w-14 h-14 rounded-full border-2 border-accent/60 shadow-md" src=""
+              alt="User" />
+            <div>
+              <p id="user-name-big" class="font-bold text-lg tracking-tight">...</p>
+              <p id="user-email-big" class="text-sm text-white/70">...</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="py-2">
+          <a href="profile.html"
+            class="flex items-center gap-3 px-6 py-3.5 text-white/90 hover:bg-accent/15 hover:text-accent transition-colors">
+            <span class="material-symbols-outlined">person</span>
+            My Profile
+          </a>
+          <a href="history.html"
+            class="flex items-center gap-3 px-6 py-3.5 text-white/90 hover:bg-accent/15 hover:text-accent transition-colors">
+            <span class="material-symbols-outlined">history</span>
+            Upload History
+          </a>
+          <a href="settings.html"
+            class="flex items-center gap-3 px-6 py-3.5 text-white/90 hover:bg-accent/15 hover:text-accent transition-colors">
+            <span class="material-symbols-outlined">settings</span>
+            Settings
+          </a>
+        </div>
+
+        <div class="py-2">
+          <button id="logout-btn"
+            class="w-full text-left px-6 py-3.5 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center gap-3">
+            <span class="material-symbols-outlined">logout</span>
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <aside id="scaled-sidebar"
+    class="fixed inset-y-0 left-0 flex flex-col items-center bg-nav_bg/80 backdrop-blur-custom border-r border-white/10 z-20">
     <div class="text-primary flex items-center justify-center py-6">
       <img src="./logo.jpg" alt="GDG MNNIT" class="h-10 w-auto" />
     </div>
-
     <nav class="flex flex-col items-center gap-8 mt-6 flex-1">
       <a class="text-white/60 hover:text-accent transition-colors" href="index.html" title="Upload">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -120,7 +226,6 @@
             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
         </svg>
       </a>
-
       <a class="text-white/60 hover:text-accent transition-colors" href="summary.html" title="Summary">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"
           stroke-width="2">
@@ -128,8 +233,6 @@
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       </a>
-
-      <!-- Active: History -->
       <a class="text-accent hover:text-accent transition-colors" href="history.html" title="History">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"
           stroke-width="2">
@@ -137,7 +240,6 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 12l-3-3" />
         </svg>
       </a>
-
       <a class="text-white/60 hover:text-accent transition-colors" href="full-search.html" title="Full Search">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"
           stroke-width="2">
@@ -147,13 +249,11 @@
     </nav>
   </aside>
 
-  <!-- Main Content - Shifted right -->
   <main class="ml-20 flex-1 pt-4 pb-6 px-6 md:pt-6 md:pb-10 md:px-10 scroll-container min-h-screen">
 
     <h1 class="text-3xl md:text-4xl font-bold mb-4 text-primary text-glow">History</h1>
 
     <div id="history-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-10">
-      <!-- Loader -->
       <div id="history-loader" class="col-span-full flex items-center justify-center gap-3 py-12">
         <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
         <p class="text-white/70 text-lg">Loading history...</p>
@@ -161,6 +261,133 @@
     </div>
 
   </main>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBhcZaHDOhT-0rQJMaQ0lczyl70yU268e8",
+      authDomain: "gdg-25-c6b09.firebaseapp.com",
+      projectId: "gdg-25-c6b09",
+      storageBucket: "gdg-25-c6b09.firebasestorage.app",
+      messagingSenderId: "295253788294",
+      appId: "1:295253788294:web:3576c4ec5c301d67393307",
+      measurementId: "G-69FDRCR32V"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+
+    const auth = firebase.auth();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+
+    const loginBtn = document.getElementById('login-btn');
+    const authGuest = document.getElementById('auth-guest');
+    const profileBtn = document.getElementById('profile-btn');
+    const userPhoto = document.getElementById('user-photo');
+    const userName = document.getElementById('user-name');
+    const userEmail = document.getElementById('user-email');
+    const userPhotoBig = document.getElementById('user-photo-big');
+    const userNameBig = document.getElementById('user-name-big');
+    const userEmailBig = document.getElementById('user-email-big');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    async function sendUserToBackend(user) {
+      if (!user) return;
+      try {
+        const idToken = await user.getIdToken();
+        await fetch("http://127.0.0.1:8000/auth/user", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName || null,
+            photoURL: user.photoURL || null
+          })
+        });
+      } catch (err) {
+        console.error("Failed to send user to backend:", err);
+      }
+    }
+
+    loginBtn.addEventListener('click', () => {
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Signing in...';
+
+      auth.signInWithPopup(provider)
+        .then((result) => {
+          sendUserToBackend(result.user);
+        })
+        .catch((error) => {
+          console.error("Auth failed:", error);
+          alert("Login failed: " + error.message);
+          loginBtn.disabled = false;
+          loginBtn.innerHTML = '<span class="material-symbols-outlined">login</span> <span class="hidden sm:inline">Sign in / Sign up</span>';
+        });
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      auth.signOut();
+    });
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        authGuest.classList.add('hidden');
+        profileBtn.classList.remove('hidden');
+
+        userPhoto.src = user.photoURL || 'https://via.placeholder.com/64?text=User';
+        userPhotoBig.src = user.photoURL || 'https://via.placeholder.com/64?text=User';
+        userName.textContent = user.displayName || 'User';
+        userNameBig.textContent = user.displayName || 'User';
+        userEmail.textContent = user.email || 'No email';
+        userEmailBig.textContent = user.email || 'No email';
+
+        sendUserToBackend(user);
+      } else {
+        authGuest.classList.remove('hidden');
+        profileBtn.classList.add('hidden');
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<span class="material-symbols-outlined">login</span> <span class="hidden sm:inline">Sign in / Sign up</span>';
+      }
+    });
+  </script>
+
+  <!-- Dropdown toggle logic -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const profileToggleBtn = document.getElementById('profile-toggle-btn');
+      const profileDropdown = document.getElementById('profile-dropdown');
+      const chevronIcon = document.getElementById('chevron-icon');
+
+      if (!profileToggleBtn || !profileDropdown) return;
+
+      profileToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // prevent closing when clicking inside
+        profileDropdown.classList.toggle('is-open');
+        chevronIcon.classList.toggle('rotate-180');
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!profileToggleBtn.contains(e.target) && !profileDropdown.contains(e.target)) {
+          profileDropdown.classList.remove('is-open');
+          chevronIcon.classList.remove('rotate-180');
+        }
+      });
+
+      // Close on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          profileDropdown.classList.remove('is-open');
+          chevronIcon.classList.remove('rotate-180');
+        }
+      });
+    });
+  </script>
 
   <script>
     const historyContainer = document.getElementById("history-container");
@@ -194,12 +421,10 @@
           `;
 
           card.innerHTML = `
-            <!-- Document Name -->
             <h2 class="text-primary font-semibold text-base line-clamp-2 mb-2 text-glow-soft">
               ${item.filename}
             </h2>
 
-            <!-- Upload Date & Document ID -->
             <div class="flex justify-between items-center text-xs text-white/50 mb-4">
               <span>${item.date || '—'}</span>
               <span class="bg-black/40 px-2 py-1 rounded border border-white/10">
@@ -207,7 +432,6 @@
               </span>
             </div>
 
-            <!-- Buttons -->
             <div class="grid grid-cols-2 gap-2.5 mt-auto">
               <button onclick="viewSummary('${key}')"
                 class="py-2 bg-accent text-black font-medium rounded-xl hover:brightness-110 transition shadow-glow-accent flex items-center justify-center gap-1.5 text-sm">
