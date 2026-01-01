@@ -31,6 +31,17 @@
 
 <body class="font-display flex flex-col min-h-screen text-white">
     <div id="video-bg"><video autoplay muted loop playsinline preload="auto"><source src="./O.mp4" type="video/mp4"></video></div>
+    
+    <div id="login-overlay" class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center hidden">
+        <div class="text-center p-8 bg-surface border border-white/10 rounded-2xl shadow-2xl max-w-md w-full">
+            <h2 class="text-3xl font-bold text-primary mb-2">Login Required</h2>
+            <p class="text-white/60 mb-8">Please sign in to view documents.</p>
+            <button id="overlay-login-btn" class="w-full py-4 bg-accent text-black font-bold text-lg rounded-xl shadow-glow-accent hover:brightness-110 transition flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined">login</span> Sign In
+            </button>
+        </div>
+    </div>
+
     <div id="scaled-ui" class="fixed inset-0 flex">
         <aside class="w-20 flex flex-col items-center bg-nav_bg/80 backdrop-blur-custom border-r border-white/10 z-20">
             <div class="text-primary flex items-center justify-center py-6"><img src="./logo.jpg" class="h-10 w-auto" /></div>
@@ -45,11 +56,13 @@
 
         <main class="flex-1 pt-5 pb-10 px-5 md:pt-8 md:px-10 scroll-container min-h-screen overflow-y-auto relative">
             <div id="auth-wrapper" class="absolute top-5 right-6 z-[100] flex items-center gap-3">
-                <div id="auth-guest" class="flex items-center gap-3"><button id="login-btn" class="flex items-center gap-2 bg-accent hover:bg-accent/90 text-black font-semibold px-6 py-2.5 rounded-full shadow-glow-accent"><span class="material-symbols-outlined">login</span> Sign in</button></div>
                 <div id="profile-btn" class="hidden relative">
-                    <button id="profile-toggle-btn" class="flex items-center gap-3 bg-gradient-to-r from-accent/20 to-primary/10 backdrop-blur-md border border-accent/40 text-white font-medium px-5 py-2.5 rounded-full shadow-glow-accent">
+                    <button id="profile-toggle-btn" class="flex items-center gap-3 bg-gradient-to-r from-accent/20 to-primary/10 backdrop-blur-md border border-accent/40 text-white font-medium px-5 py-2.5 rounded-full shadow-glow-accent text-left">
                         <img id="user-photo" class="w-10 h-10 rounded-full border-2 border-accent/80" src="" />
-                        <div class="flex flex-col items-start text-left leading-tight"><span id="user-name" class="font-semibold max-w-[160px] truncate">...</span></div>
+                        <div class="flex flex-col items-start leading-tight">
+                            <span id="user-name" class="font-semibold max-w-[160px] truncate">...</span>
+                            <span id="user-email" class="text-xs text-white/65 max-w-[160px] truncate">...</span>
+                        </div>
                         <span id="chevron-icon" class="material-symbols-outlined text-xl text-white/70">expand_more</span>
                     </button>
                     <div id="profile-dropdown" class="absolute right-0 mt-3 w-80 bg-surface/95 backdrop-blur-xl border border-accent/30 rounded-2xl shadow-2xl opacity-0 scale-95 pointer-events-none transition-all duration-200 origin-top-right [&.is-open]:opacity-100 [&.is-open]:scale-100 [&.is-open]:pointer-events-auto">
@@ -81,7 +94,10 @@
                 </div>
                 <div class="bg-surface/80 backdrop-blur-custom rounded-xl p-5 md:p-6 border border-white/10 opacity-60" id="qa-section">
                     <h2 class="text-2xl font-bold mb-5 text-primary text-glow-soft flex items-center gap-3"><span class="material-symbols-outlined text-3xl">smart_toy</span> Ask AI</h2>
-                    <form id="qa-form" class="flex flex-col md:flex-row gap-3"><input id="search-input" type="text" placeholder="First select a document..." disabled class="flex-1 bg-black/60 border border-accent/30 rounded-xl px-5 py-3.5 text-white" /><button type="submit" disabled class="bg-accent/50 text-black/50 font-semibold px-8 py-3.5 rounded-xl">Ask</button></form>
+                    <form id="qa-form" class="flex flex-col md:flex-row gap-3">
+                        <input id="search-input" type="text" placeholder="First select a document..." disabled class="flex-1 bg-black/60 border border-accent/30 rounded-xl px-5 py-3.5 text-white" />
+                        <button type="submit" id="qa-btn" disabled class="bg-accent/50 text-black/50 font-semibold px-8 py-3.5 rounded-xl transition-all duration-300">Ask</button>
+                    </form>
                     <div id="backend-box" class="mt-6 min-h-[180px] bg-black/40 rounded-xl p-5 border border-white/10"></div>
                 </div>
             </div>
@@ -94,20 +110,20 @@
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        const loginBtn = document.getElementById('login-btn');
-        const authGuest = document.getElementById('auth-guest');
+        const loginOverlay = document.getElementById('login-overlay');
+        const overlayLoginBtn = document.getElementById('overlay-login-btn');
         const profileBtn = document.getElementById('profile-btn');
         const userPhoto = document.getElementById('user-photo');
         const userName = document.getElementById('user-name');
+        const userEmail = document.getElementById('user-email');
         const userPhotoBig = document.getElementById('user-photo-big');
         const userNameBig = document.getElementById('user-name-big');
         const userEmailBig = document.getElementById('user-email-big');
         const logoutBtn = document.getElementById('logout-btn');
 
-        loginBtn.addEventListener('click', () => auth.signInWithPopup(provider));
+        overlayLoginBtn.addEventListener('click', () => auth.signInWithPopup(provider));
         logoutBtn.addEventListener('click', () => auth.signOut());
 
-        // Dropdown Logic
         const profileToggleBtn = document.getElementById('profile-toggle-btn');
         const profileDropdown = document.getElementById('profile-dropdown');
         const chevronIcon = document.getElementById('chevron-icon');
@@ -116,20 +132,20 @@
 
         auth.onAuthStateChanged(user => {
             if (user) {
-                authGuest.classList.add('hidden');
+                loginOverlay.classList.add('hidden');
                 profileBtn.classList.remove('hidden');
                 userPhoto.src = user.photoURL;
                 userPhotoBig.src = user.photoURL;
                 userName.textContent = user.displayName;
+                userEmail.textContent = user.email;
                 userNameBig.textContent = user.displayName;
                 userEmailBig.textContent = user.email;
             } else {
-                authGuest.classList.remove('hidden');
+                loginOverlay.classList.remove('hidden');
                 profileBtn.classList.add('hidden');
             }
         });
 
-        // Summary Loading Logic (retained mostly unchanged)
         const fileNameEl = document.getElementById("file-name");
         const fileDateEl = document.getElementById("file-date");
         const fileTypeEl = document.getElementById("file-type");
@@ -138,9 +154,15 @@
         const backendBox = document.getElementById("backend-box");
         const searchInput = document.getElementById("search-input");
         const qaForm = document.getElementById("qa-form");
+        const qaBtn = document.getElementById("qa-btn");
         const downloadBtn = document.getElementById("download-btn");
         const qaSection = document.getElementById("qa-section");
         let currentDocId = null;
+
+        // FIXED: Bold text parsing function
+        function parseBold(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-accent">$1</strong>');
+        }
 
         async function loadSummary() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -158,9 +180,15 @@
                 downloadBtn.disabled = false;
                 downloadBtn.classList.remove("opacity-50", "cursor-not-allowed");
                 summaryContent.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-primary text-glow">Summary</h2><div class="summary-html-content">${data.summary}</div>`;
+                
                 qaSection.classList.remove('opacity-60');
                 searchInput.disabled = false;
-                qaForm.querySelector('button').disabled = false;
+                
+                // FIXED: Button visual state
+                qaBtn.disabled = false;
+                qaBtn.classList.remove('bg-accent/50', 'text-black/50');
+                qaBtn.classList.add('bg-accent', 'text-black', 'shadow-glow-accent', 'hover:scale-105');
+                
             } catch (err) { summaryContent.innerHTML = `<p class="text-red-400">${err.message}</p>`; }
         }
 
@@ -171,7 +199,9 @@
                 const res = await fetch(`http://127.0.0.1:8000/ask?query=${encodeURIComponent(query)}&doc_ids=${currentDocId}`);
                 if (!res.ok) throw new Error("Server error");
                 const data = await res.json();
-                backendBox.innerHTML = `<div class="flex items-start gap-4"><span class="material-symbols-outlined text-2xl text-accent mt-0.5">auto_awesome</span><div class="flex-1"><h3 class="text-lg font-bold text-accent mb-3">AI Answer</h3><div class="text-white/90 leading-relaxed text-base">${data.answer}</div></div></div>`;
+                // FIXED: Apply bold parsing
+                const formattedAnswer = parseBold(data.answer);
+                backendBox.innerHTML = `<div class="flex items-start gap-4"><span class="material-symbols-outlined text-2xl text-accent mt-0.5">auto_awesome</span><div class="flex-1"><h3 class="text-lg font-bold text-accent mb-3">AI Answer</h3><div class="text-white/90 leading-relaxed text-base">${formattedAnswer}</div></div></div>`;
             } catch (err) { backendBox.innerHTML = `<p class="text-red-400">Error: ${err.message}</p>`; }
         }
 

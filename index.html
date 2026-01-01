@@ -28,17 +28,26 @@
 <body class="font-display flex flex-col min-h-screen text-white">
     <div id="video-bg"><video autoplay muted loop playsinline preload="auto"><source src="./N.mp4" type="video/mp4"></video></div>
 
-    <div class="absolute top-5 right-6 z-50 flex items-center gap-3" id="auth-container">
-        <div id="auth-guest" class="flex items-center gap-3">
-            <button id="login-btn" class="flex items-center gap-2 bg-accent hover:bg-accent/90 text-black font-semibold px-6 py-2.5 rounded-full transition-all duration-300 shadow-glow-accent hover:shadow-glow-primary hover:scale-[1.02]">
-                <span class="material-symbols-outlined">login</span> Sign in
+    <div id="login-overlay" class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center hidden">
+        <div class="text-center p-8 bg-surface border border-white/10 rounded-2xl shadow-2xl max-w-md w-full">
+            <img src="./logo.jpg" class="h-16 w-auto mx-auto mb-6" alt="Logo">
+            <h2 class="text-3xl font-bold text-primary mb-2">Welcome Back</h2>
+            <p class="text-white/60 mb-8">Please sign in to access your documents.</p>
+            <button id="overlay-login-btn" class="w-full py-4 bg-accent text-black font-bold text-lg rounded-xl shadow-glow-accent hover:brightness-110 transition flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined">login</span> Sign In with Google
             </button>
         </div>
+    </div>
+
+    <div class="absolute top-5 right-6 z-50 flex items-center gap-3" id="auth-container">
+        <div id="auth-guest" class="hidden flex items-center gap-3"></div>
+
         <div id="profile-btn" class="hidden relative">
-            <button id="profile-toggle-btn" class="flex items-center gap-3 bg-gradient-to-r from-accent/20 to-primary/10 hover:from-accent/30 hover:to-primary/20 backdrop-blur-md border border-accent/40 text-white font-medium px-5 py-2.5 rounded-full shadow-glow-accent">
+            <button id="profile-toggle-btn" class="flex items-center gap-3 bg-gradient-to-r from-accent/20 to-primary/10 hover:from-accent/30 hover:to-primary/20 backdrop-blur-md border border-accent/40 text-white font-medium px-5 py-2.5 rounded-full shadow-glow-accent text-left">
                 <img id="user-photo" class="w-10 h-10 rounded-full border-2 border-accent/80" src="" />
-                <div class="flex flex-col items-start text-left leading-tight">
+                <div class="flex flex-col items-start leading-tight">
                     <span id="user-name" class="font-semibold tracking-tight max-w-[160px] truncate">...</span>
+                    <span id="user-email" class="text-xs text-white/65 max-w-[160px] truncate">...</span>
                 </div>
                 <span id="chevron-icon" class="material-symbols-outlined text-xl text-white/70">expand_more</span>
             </button>
@@ -108,27 +117,26 @@
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        const loginBtn = document.getElementById('login-btn');
-        const authGuest = document.getElementById('auth-guest');
+        const loginOverlay = document.getElementById('login-overlay');
+        const overlayLoginBtn = document.getElementById('overlay-login-btn');
         const profileBtn = document.getElementById('profile-btn');
         const userPhoto = document.getElementById('user-photo');
         const userName = document.getElementById('user-name');
+        const userEmail = document.getElementById('user-email'); // Added ref
         const userPhotoBig = document.getElementById('user-photo-big');
         const userNameBig = document.getElementById('user-name-big');
         const userEmailBig = document.getElementById('user-email-big');
         const logoutBtn = document.getElementById('logout-btn');
 
-        loginBtn.addEventListener('click', () => auth.signInWithPopup(provider));
+        overlayLoginBtn.addEventListener('click', () => auth.signInWithPopup(provider));
         logoutBtn.addEventListener('click', () => auth.signOut());
 
-        // Dropdown Logic
         const profileToggleBtn = document.getElementById('profile-toggle-btn');
         const profileDropdown = document.getElementById('profile-dropdown');
         const chevronIcon = document.getElementById('chevron-icon');
         profileToggleBtn.addEventListener('click', (e) => { e.stopPropagation(); profileDropdown.classList.toggle('is-open'); chevronIcon.classList.toggle('rotate-180'); });
         document.addEventListener('click', (e) => { if (!profileToggleBtn.contains(e.target) && !profileDropdown.contains(e.target)) { profileDropdown.classList.remove('is-open'); chevronIcon.classList.remove('rotate-180'); } });
 
-        // Logic
         const selectBtn = document.getElementById("select-btn");
         const fileInput = document.getElementById("file-input");
         const uploadBlock = document.getElementById("upload-block");
@@ -139,35 +147,32 @@
 
         auth.onAuthStateChanged(user => {
             if (user) {
-                authGuest.classList.add('hidden');
+                loginOverlay.classList.add('hidden'); // Hide overlay
                 profileBtn.classList.remove('hidden');
                 userPhoto.src = user.photoURL;
                 userPhotoBig.src = user.photoURL;
                 userName.textContent = user.displayName;
+                userEmail.textContent = user.email; // Restore email
                 userNameBig.textContent = user.displayName;
                 userEmailBig.textContent = user.email;
                 currentUserUid = user.uid;
                 loadStats(user.uid);
             } else {
-                authGuest.classList.remove('hidden');
+                loginOverlay.classList.remove('hidden'); // Show blocking overlay
                 profileBtn.classList.add('hidden');
                 currentUserUid = null;
-                document.getElementById("total-docs").textContent = "0";
-                document.getElementById("time-saved").textContent = "0 hrs";
             }
         });
 
         async function handleFile(file) {
-            if (!file) return;
-            if (!currentUserUid) { alert("Please sign in to upload documents."); return; }
-
+            if (!file || !currentUserUid) return;
             uploadBlock.classList.add("hidden");
             loader.classList.remove("hidden");
             summarizeBtn.classList.add("hidden");
 
             const formData = new FormData();
             formData.append("file", file);
-            formData.append("user_id", currentUserUid); // Pass User ID
+            formData.append("user_id", currentUserUid);
 
             try {
                 const response = await fetch("http://127.0.0.1:8000/preprocess", { method: "POST", body: formData });
@@ -176,9 +181,8 @@
                 localStorage.setItem("currentDocId", result.doc_id);
                 loader.classList.add("hidden");
                 summarizeBtn.classList.remove("hidden");
-                loadStats(currentUserUid); // Refresh stats
+                loadStats(currentUserUid);
             } catch (err) {
-                console.error("Upload failed:", err);
                 loader.classList.add("hidden");
                 uploadBlock.classList.remove("hidden");
                 alert("Upload failed: " + err.message);

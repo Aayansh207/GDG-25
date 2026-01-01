@@ -1,35 +1,17 @@
 <!DOCTYPE html>
 <html class="dark" lang="en">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Profile - Neuro Ranger - GDG MNNIT</title>
-
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-analytics-compat.js"></script>
-
     <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: { primary: "#f9ab00", accent: "#4285f4", surface: "#0A0A0A", nav_bg: "#111111" },
-                    fontFamily: { display: ["Roboto", "sans-serif"] },
-                    borderRadius: { DEFAULT: "8px" },
-                    boxShadow: { "glow-accent": "0 0 20px 0 rgba(66,133,244,0.5)", "glow-primary": "0 0 20px 0 rgba(249,171,0,0.5)" },
-                    textShadow: { glow: "0 0 30px rgba(249, 171, 0, 0.6)", "glow-soft": "0 0 20px rgba(249, 171, 0, 0.4)" }
-                }
-            },
-            plugins: [function ({ addUtilities }) { addUtilities({ '.text-glow': { textShadow: '0 0 30px rgba(249, 171, 0, 0.6)' }, '.text-glow-soft': { textShadow: '0 0 20px rgba(249, 171, 0, 0.4)' } }) }]
-        };
+        tailwind.config = { darkMode: "class", theme: { extend: { colors: { primary: "#f9ab00", accent: "#4285f4", surface: "#0A0A0A", nav_bg: "#111111" }, fontFamily: { display: ["Roboto", "sans-serif"] }, borderRadius: { DEFAULT: "8px" }, boxShadow: { "glow-accent": "0 0 20px 0 rgba(66,133,244,0.5)", "glow-primary": "0 0 20px 0 rgba(249,171,0,0.5)" }, textShadow: { glow: "0 0 30px rgba(249, 171, 0, 0.6)", "glow-soft": "0 0 20px rgba(249, 171, 0, 0.4)" } } } };
     </script>
-
     <style>
         body { min-height: 100dvh; margin: 0; background-color: #000000; overflow-x: hidden; }
         #video-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; overflow: hidden; }
@@ -50,81 +32,44 @@
 </head>
 
 <body class="font-display flex flex-col min-h-screen text-white">
+    <div id="video-bg"><video autoplay muted loop playsinline preload="auto"><source src="./M.mp4" type="video/mp4"></video></div>
 
-    <div id="video-bg">
-        <video autoplay muted loop playsinline preload="auto">
-            <source src="./M.mp4" type="video/mp4">
-        </video>
+    <div id="login-overlay" class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center hidden">
+        <div class="text-center p-8 bg-surface border border-white/10 rounded-2xl shadow-2xl max-w-md w-full">
+            <h2 class="text-3xl font-bold text-primary mb-2">Login Required</h2>
+            <p class="text-white/60 mb-8">Please sign in to manage your profile.</p>
+            <button id="overlay-login-btn" class="w-full py-4 bg-accent text-black font-bold text-lg rounded-xl shadow-glow-accent hover:brightness-110 transition flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined">login</span> Sign In
+            </button>
+        </div>
     </div>
 
     <div id="auth-wrapper" class="absolute top-5 right-6 z-[100] flex items-center gap-3">
-        <div id="auth-guest" class="flex items-center gap-3">
-            <button id="login-btn" class="flex items-center gap-2 bg-accent hover:bg-accent/90 text-black font-semibold px-6 py-2.5 rounded-full transition-all duration-300 shadow-glow-accent hover:shadow-glow-primary hover:scale-[1.02] active:scale-95">
-                <span class="material-symbols-outlined">login</span>
-                <span class="hidden sm:inline">Sign in / Sign up</span>
-            </button>
-        </div>
-
         <div id="profile-btn" class="hidden relative">
-            <button id="profile-toggle-btn" class="flex items-center gap-3 bg-gradient-to-r from-accent/20 to-primary/10 hover:from-accent/30 hover:to-primary/20 backdrop-blur-md border border-accent/40 hover:border-accent/70 text-white font-medium px-5 py-2.5 rounded-full transition-all duration-300 shadow-glow-accent hover:shadow-glow-primary hover:scale-[1.03] active:scale-[0.98]">
-                <div class="relative">
-                    <img id="user-photo" class="w-10 h-10 rounded-full object-cover border-2 border-accent/80 shadow-md" src="" alt="User" />
-                    <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-surface shadow-sm"></span>
-                </div>
-                <div class="flex flex-col items-start text-left leading-tight">
-                    <span id="user-name" class="font-semibold tracking-tight max-w-[160px] truncate">...</span>
+            <button id="profile-toggle-btn" class="flex items-center gap-3 bg-gradient-to-r from-accent/20 to-primary/10 hover:from-accent/30 hover:to-primary/20 backdrop-blur-md border border-accent/40 text-white font-medium px-5 py-2.5 rounded-full shadow-glow-accent text-left">
+                <img id="user-photo" class="w-10 h-10 rounded-full border-2 border-accent/80" src="" />
+                <div class="flex flex-col items-start leading-tight">
+                    <span id="user-name" class="font-semibold max-w-[160px] truncate">...</span>
                     <span id="user-email" class="text-xs text-white/65 max-w-[160px] truncate">...</span>
                 </div>
-                <span id="chevron-icon" class="material-symbols-outlined text-xl text-white/70 transition-transform duration-300">expand_more</span>
+                <span id="chevron-icon" class="material-symbols-outlined text-xl text-white/70">expand_more</span>
             </button>
-
             <div id="profile-dropdown" class="absolute right-0 mt-3 w-80 bg-surface/95 backdrop-blur-xl border border-accent/30 rounded-2xl shadow-2xl opacity-0 scale-95 pointer-events-none transition-all duration-200 origin-top-right [&.is-open]:opacity-100 [&.is-open]:scale-100 [&.is-open]:pointer-events-auto">
-                <div class="px-6 py-5">
-                    <div class="flex items-center gap-4">
-                        <img id="user-photo-big" class="w-14 h-14 rounded-full border-2 border-accent/60 shadow-md" src="" alt="User" />
-                        <div>
-                            <p id="user-name-big" class="font-bold text-lg tracking-tight">...</p>
-                            <p id="user-email-big" class="text-sm text-white/70">...</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="py-2">
-                    <a href="profile.html" class="flex items-center gap-3 px-6 py-3.5 text-white/90 hover:bg-accent/15 hover:text-accent transition-colors">
-                        <span class="material-symbols-outlined">person</span> My Profile
-                    </a>
-                    <a href="history.html" class="flex items-center gap-3 px-6 py-3.5 text-white/90 hover:bg-accent/15 hover:text-accent transition-colors">
-                        <span class="material-symbols-outlined">history</span> Upload History
-                    </a>
-                </div>
-                <div class="py-2">
-                    <button id="logout-btn" class="w-full text-left px-6 py-3.5 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center gap-3">
-                        <span class="material-symbols-outlined">logout</span> Sign out
-                    </button>
-                </div>
+                <div class="px-6 py-5"><div class="flex items-center gap-4"><img id="user-photo-big" class="w-14 h-14 rounded-full border-2 border-accent/60" src="" /><div><p id="user-name-big" class="font-bold text-lg">...</p><p id="user-email-big" class="text-sm text-white/70">...</p></div></div></div>
+                <div class="py-2"><a href="profile.html" class="flex items-center gap-3 px-6 py-3.5 text-white/90 hover:bg-accent/15"><span class="material-symbols-outlined">person</span> My Profile</a><a href="history.html" class="flex items-center gap-3 px-6 py-3.5 text-white/90 hover:bg-accent/15"><span class="material-symbols-outlined">history</span> Upload History</a></div>
+                <div class="py-2"><button id="logout-btn" class="w-full text-left px-6 py-3.5 text-red-400 hover:bg-red-500/10 flex items-center gap-3"><span class="material-symbols-outlined">logout</span> Sign out</button></div>
             </div>
         </div>
     </div>
 
     <aside id="scaled-sidebar" class="fixed inset-y-0 left-0 flex flex-col items-center bg-nav_bg/80 backdrop-blur-custom border-r border-white/10 z-20">
-        <div class="text-primary flex items-center justify-center py-6">
-            <img src="./logo.jpg" alt="GDG MNNIT" class="h-10 w-auto" />
-        </div>
+        <div class="text-primary flex items-center justify-center py-6"><img src="./logo.jpg" class="h-10 w-auto" /></div>
         <nav class="flex flex-col items-center gap-8 mt-6 flex-1">
-            <a class="text-white/60 hover:text-accent transition-colors" href="index.html" title="Upload">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-            </a>
-            <a class="text-white/60 hover:text-accent transition-colors" href="summary.html" title="Summary">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            </a>
-            <a class="text-white/60 hover:text-accent transition-colors" href="history.html" title="History">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 12l-3-3" /></svg>
-            </a>
-            <a class="text-white/60 hover:text-accent transition-colors" href="full-search.html" title="Full Search">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            </a>
-            <a class="text-accent hover:text-accent transition-colors" href="profile.html" title="Profile">
-                <span class="material-symbols-outlined text-4xl">person</span>
-            </a>
+            <a class="text-white/60 hover:text-accent" href="index.html"><svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg></a>
+            <a class="text-white/60 hover:text-accent" href="summary.html"><svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></a>
+            <a class="text-white/60 hover:text-accent" href="history.html"><svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 12l-3-3" /></svg></a>
+            <a class="text-white/60 hover:text-accent" href="full-search.html"><svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg></a>
+            <a class="text-accent hover:text-accent" href="profile.html"><span class="material-symbols-outlined text-4xl">person</span></a>
         </nav>
     </aside>
 
@@ -143,14 +88,13 @@
                     <div class="flex-1 text-center md:text-left">
                         <h2 id="profile-name" class="text-3xl font-bold text-white mb-2">...</h2>
                         <p id="profile-email" class="text-lg text-white/70 mb-4">...</p>
-
                         <div class="inline-flex flex-wrap gap-3">
                             <div class="bg-black/40 px-4 py-2 rounded-full border border-white/10 text-sm">
-                                <span class="text-accent font-medium">First Upload:</span>
+                                <span class="text-accent font-medium">Member Since:</span>
                                 <span id="join-date" class="text-white/80">...</span>
                             </div>
                             <div class="bg-black/40 px-4 py-2 rounded-full border border-white/10 text-sm">
-                                <span class="text-accent font-medium">Documents uploaded:</span>
+                                <span class="text-accent font-medium">Documents:</span>
                                 <span id="doc-count" class="text-white/80">0</span>
                             </div>
                         </div>
@@ -182,7 +126,6 @@
                     <div>
                         <label class="block text-sm font-medium text-white/80 mb-2">Profile Photo URL</label>
                         <input type="url" id="edit-photo" class="w-full px-4 py-3 bg-black/40 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-accent transition" placeholder="https://example.com/photo.jpg" />
-                        <p class="text-xs text-white/50 mt-2">Paste a direct image URL</p>
                     </div>
                 </div>
                 <div class="flex gap-3 mt-8">
@@ -194,23 +137,13 @@
     </main>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBhcZaHDOhT-0rQJMaQ0lczyl70yU268e8",
-            authDomain: "gdg-25-c6b09.firebaseapp.com",
-            projectId: "gdg-25-c6b09",
-            storageBucket: "gdg-25-c6b09.firebasestorage.app",
-            messagingSenderId: "295253788294",
-            appId: "1:295253788294:web:3576c4ec5c301d67393307",
-            measurementId: "G-69FDRCR32V"
-        };
-
+        const firebaseConfig = { apiKey: "AIzaSyBhcZaHDOhT-0rQJMaQ0lczyl70yU268e8", authDomain: "gdg-25-c6b09.firebaseapp.com", projectId: "gdg-25-c6b09", storageBucket: "gdg-25-c6b09.firebasestorage.app", messagingSenderId: "295253788294", appId: "1:295253788294:web:3576c4ec5c301d67393307", measurementId: "G-69FDRCR32V" };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        // UI References
-        const loginBtn = document.getElementById('login-btn');
-        const authGuest = document.getElementById('auth-guest');
+        const loginOverlay = document.getElementById('login-overlay');
+        const overlayLoginBtn = document.getElementById('overlay-login-btn');
         const profileBtn = document.getElementById('profile-btn');
         const userPhoto = document.getElementById('user-photo');
         const userName = document.getElementById('user-name');
@@ -223,7 +156,6 @@
         const profileDropdown = document.getElementById('profile-dropdown');
         const chevronIcon = document.getElementById('chevron-icon');
 
-        // Profile Specific
         const profilePhoto = document.getElementById('profile-photo');
         const profileName = document.getElementById('profile-name');
         const profileEmail = document.getElementById('profile-email');
@@ -238,34 +170,14 @@
         const editName = document.getElementById('edit-name');
         const editPhoto = document.getElementById('edit-photo');
 
-        // Login
-        loginBtn?.addEventListener('click', () => {
-            auth.signInWithPopup(provider).catch(err => alert("Login failed: " + err.message));
-        });
+        overlayLoginBtn.addEventListener('click', () => auth.signInWithPopup(provider));
+        [logoutBtn, profileLogoutBtn].forEach(btn => btn?.addEventListener('click', () => auth.signOut().then(() => window.location.href = "index.html")));
 
-        // Logout
-        [logoutBtn, profileLogoutBtn].forEach(btn => {
-            btn?.addEventListener('click', () => {
-                auth.signOut().then(() => window.location.href = "index.html");
-            });
-        });
-
-        // Dropdown Logic
         if (profileToggleBtn && profileDropdown) {
-            profileToggleBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                profileDropdown.classList.toggle('is-open');
-                chevronIcon.classList.toggle('rotate-180');
-            });
-            document.addEventListener('click', (e) => {
-                if (!profileToggleBtn.contains(e.target) && !profileDropdown.contains(e.target)) {
-                    profileDropdown.classList.remove('is-open');
-                    chevronIcon.classList.remove('rotate-180');
-                }
-            });
+            profileToggleBtn.addEventListener('click', (e) => { e.stopPropagation(); profileDropdown.classList.toggle('is-open'); chevronIcon.classList.toggle('rotate-180'); });
+            document.addEventListener('click', (e) => { if (!profileToggleBtn.contains(e.target) && !profileDropdown.contains(e.target)) { profileDropdown.classList.remove('is-open'); chevronIcon.classList.remove('rotate-180'); } });
         }
 
-        // Edit Modal
         editProfileBtn?.addEventListener('click', () => {
             editName.value = auth.currentUser?.displayName || '';
             editPhoto.value = auth.currentUser?.photoURL || '';
@@ -278,9 +190,7 @@
             if (!user) return;
             try {
                 await user.updateProfile({ displayName: editName.value.trim(), photoURL: editPhoto.value.trim() });
-                auth.currentUser.reload().then(() => {
-                    updateProfileUI(auth.currentUser);
-                });
+                auth.currentUser.reload().then(() => updateProfileUI(auth.currentUser));
                 editModal.classList.remove('is-open');
             } catch (err) { alert("Update failed: " + err.message); }
         });
@@ -293,7 +203,6 @@
                 docCount.textContent = data.doc_count;
                 joinDate.textContent = data.member_since;
             } catch (e) {
-                console.error(e);
                 docCount.textContent = "0";
                 joinDate.textContent = "Unknown";
             }
@@ -307,27 +216,25 @@
             userPhoto.src = photoUrl;
             userPhotoBig.src = photoUrl;
             userName.textContent = name;
-            userNameBig.textContent = name;
             userEmail.textContent = email;
+            userNameBig.textContent = name;
             userEmailBig.textContent = email;
 
             profilePhoto.src = photoUrl;
             profileName.textContent = name;
             profileEmail.textContent = email;
 
-            // Fetch backend stats
             fetchProfileStats(user.uid);
         }
 
         auth.onAuthStateChanged(user => {
             if (user) {
-                authGuest?.classList.add('hidden');
+                loginOverlay.classList.add('hidden');
                 profileBtn?.classList.remove('hidden');
                 updateProfileUI(user);
             } else {
-                authGuest?.classList.remove('hidden');
+                loginOverlay.classList.remove('hidden');
                 profileBtn?.classList.add('hidden');
-                document.querySelector('main').innerHTML = `<div class="text-center py-20 text-2xl text-white/70">Please sign in to view your profile.</div>`;
             }
         });
     </script>

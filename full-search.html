@@ -27,14 +27,24 @@
 <body class="font-display flex flex-col min-h-screen text-white">
     <div id="video-bg"><video autoplay muted loop playsinline preload="auto"><source src="./T.mp4" type="video/mp4"></video></div>
 
-    <div id="auth-wrapper" class="absolute top-5 right-6 z-[100] flex items-center gap-3">
-        <div id="auth-guest" class="flex items-center gap-3">
-            <button id="login-btn" class="flex items-center gap-2 bg-accent hover:bg-accent/90 text-black font-semibold px-6 py-2.5 rounded-full shadow-glow-accent"><span class="material-symbols-outlined">login</span> Sign in</button>
+    <div id="login-overlay" class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center hidden">
+        <div class="text-center p-8 bg-surface border border-white/10 rounded-2xl shadow-2xl max-w-md w-full">
+            <h2 class="text-3xl font-bold text-primary mb-2">Login Required</h2>
+            <p class="text-white/60 mb-8">Please sign in to search documents.</p>
+            <button id="overlay-login-btn" class="w-full py-4 bg-accent text-black font-bold text-lg rounded-xl shadow-glow-accent hover:brightness-110 transition flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined">login</span> Sign In
+            </button>
         </div>
+    </div>
+
+    <div id="auth-wrapper" class="absolute top-5 right-6 z-[100] flex items-center gap-3">
         <div id="profile-btn" class="hidden relative">
-            <button id="profile-toggle-btn" class="flex items-center gap-3 bg-gradient-to-r from-accent/20 to-primary/10 backdrop-blur-md border border-accent/40 text-white font-medium px-5 py-2.5 rounded-full shadow-glow-accent">
+            <button id="profile-toggle-btn" class="flex items-center gap-3 bg-gradient-to-r from-accent/20 to-primary/10 backdrop-blur-md border border-accent/40 text-white font-medium px-5 py-2.5 rounded-full shadow-glow-accent text-left">
                 <img id="user-photo" class="w-10 h-10 rounded-full border-2 border-accent/80" src="" />
-                <div class="flex flex-col items-start text-left leading-tight"><span id="user-name" class="font-semibold max-w-[160px] truncate">...</span></div>
+                <div class="flex flex-col items-start leading-tight">
+                    <span id="user-name" class="font-semibold max-w-[160px] truncate">...</span>
+                    <span id="user-email" class="text-xs text-white/65 max-w-[160px] truncate">...</span>
+                </div>
                 <span id="chevron-icon" class="material-symbols-outlined text-xl text-white/70">expand_more</span>
             </button>
             <div id="profile-dropdown" class="absolute right-0 mt-3 w-80 bg-surface/95 backdrop-blur-xl border border-accent/30 rounded-2xl shadow-2xl opacity-0 scale-95 pointer-events-none transition-all duration-200 origin-top-right [&.is-open]:opacity-100 [&.is-open]:scale-100 [&.is-open]:pointer-events-auto">
@@ -76,27 +86,26 @@
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        const loginBtn = document.getElementById('login-btn');
-        const authGuest = document.getElementById('auth-guest');
+        const loginOverlay = document.getElementById('login-overlay');
+        const overlayLoginBtn = document.getElementById('overlay-login-btn');
         const profileBtn = document.getElementById('profile-btn');
         const userPhoto = document.getElementById('user-photo');
         const userName = document.getElementById('user-name');
+        const userEmail = document.getElementById('user-email');
         const userPhotoBig = document.getElementById('user-photo-big');
         const userNameBig = document.getElementById('user-name-big');
         const userEmailBig = document.getElementById('user-email-big');
         const logoutBtn = document.getElementById('logout-btn');
 
-        loginBtn.addEventListener('click', () => auth.signInWithPopup(provider));
+        overlayLoginBtn.addEventListener('click', () => auth.signInWithPopup(provider));
         logoutBtn.addEventListener('click', () => auth.signOut());
 
-        // Dropdown
         const profileToggleBtn = document.getElementById('profile-toggle-btn');
         const profileDropdown = document.getElementById('profile-dropdown');
         const chevronIcon = document.getElementById('chevron-icon');
         profileToggleBtn.addEventListener('click', (e) => { e.stopPropagation(); profileDropdown.classList.toggle('is-open'); chevronIcon.classList.toggle('rotate-180'); });
         document.addEventListener('click', (e) => { if (!profileToggleBtn.contains(e.target) && !profileDropdown.contains(e.target)) { profileDropdown.classList.remove('is-open'); chevronIcon.classList.remove('rotate-180'); } });
 
-        // Search Logic
         const searchForm = document.getElementById("search-form");
         const searchInput = document.getElementById("search-input");
         const resultsContainer = document.getElementById("results-container");
@@ -104,31 +113,33 @@
 
         auth.onAuthStateChanged(user => {
             if (user) {
-                authGuest.classList.add('hidden');
+                loginOverlay.classList.add('hidden');
                 profileBtn.classList.remove('hidden');
                 userPhoto.src = user.photoURL;
                 userPhotoBig.src = user.photoURL;
                 userName.textContent = user.displayName;
+                userEmail.textContent = user.email;
                 userNameBig.textContent = user.displayName;
                 userEmailBig.textContent = user.email;
                 currentUserUid = user.uid;
             } else {
-                authGuest.classList.remove('hidden');
+                loginOverlay.classList.remove('hidden');
                 profileBtn.classList.add('hidden');
                 currentUserUid = null;
-                resultsContainer.innerHTML = `<div class="text-center py-16 text-white/50">Please sign in to search your documents.</div>`;
             }
         });
 
         searchForm.addEventListener("submit", e => {
             e.preventDefault();
-            if (!currentUserUid) { alert("Please sign in"); return; }
             const query = searchInput.value.trim();
-            if (query) performSearch(query, currentUserUid);
+            if (query && currentUserUid) performSearch(query, currentUserUid);
         });
 
         function formatText(text) {
             if (!text) return "<p class='text-white/60'>No content available.</p>";
+            // FIXED: Apply bold parsing first
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-accent">$1</strong>');
+            
             const lines = text.split('\n');
             let html = '';
             let inList = false;
