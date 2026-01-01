@@ -1,123 +1,228 @@
-# FullRAGSystem  
-**A Modular Retrieval-Augmented Generation (RAG) Pipeline with Semantic Chunking, Pinecone, and Gemini**
+ContextIQ
+AI-Powered Intelligent Document Intelligence Platform
 
----
+🚀 GDG TechSprint Hackathon Project | GDG MNNIT
 
-## Overview
+<p align="center"> <img src="./logo.jpg" alt="ContextIQ Logo" width="160"/> </p> <p align="center"> <b>Understand documents the way humans do.</b><br/> Upload, summarize, search, and ask — all in context. </p> <p align="center"> <img src="https://img.shields.io/badge/GDG-TechSprint-blue?style=for-the-badge"/> <img src="https://img.shields.io/badge/AI-RAG-success?style=for-the-badge"/> <img src="https://img.shields.io/badge/FastAPI-Backend-brightgreen?style=for-the-badge"/> <img src="https://img.shields.io/badge/Status-Hackathon%20Build-orange?style=for-the-badge"/> </p>
+🌍 Problem Statement
 
-FullRAGSystem is a Python-based implementation of a **Retrieval-Augmented Generation (RAG)** pipeline designed for **accurate, document-grounded question answering**.
+In academia and industry, people constantly deal with large, complex documents — PDFs, scanned files, notes, reports, and images.
 
-The system emphasizes:
-- Semantic correctness over brute-force chunking
-- Deterministic behavior over creative hallucination
-- Clear separation of ingestion, retrieval, reranking, and generation
+Existing challenges:
 
-It is intended for developers building **production-grade RAG systems**, not tutorial-level demos.
+Reading long documents is time-consuming
 
----
+Keyword search fails to capture semantic meaning
 
-## Key Features
+Scanned/image documents are hard to analyze
 
-- **Semantic Chunking**
-  - Sentence-level chunking using embedding similarity
-  - Preserves conceptual coherence across chunks
+No unified way to ask questions across documents
 
-- **Vector Search with Pinecone**
-  - Efficient similarity-based retrieval
-  - Document-scoped filtering via metadata
+💡 Our Solution — ContextIQ
 
-- **Cross-Encoder Reranking**
-  - Precise relevance scoring using query–chunk pairs
-  - Reduces noise from approximate vector search
+ContextIQ is an AI-powered document intelligence system that transforms raw documents into an interactive, searchable, and queryable knowledge base using Retrieval-Augmented Generation (RAG).
 
-- **Strict Context Grounding**
-  - LLM answers are constrained to retrieved content only
-  - Explicit fallback when information is missing
+It doesn’t just store documents —
+👉 it understands them in context.
 
-- **Modular Architecture**
-  - Clear separation of responsibilities
-  - Easy to extend or replace individual components
+✨ Key Features
+📤 Intelligent Document Upload
 
----
+Supports PDF, TXT & image files
 
-## Architecture
+OCR using EasyOCR
 
-Raw Text
-↓
-Semantic Chunking (sentence + similarity)
-↓
-SentenceTransformer Embeddings
-↓
+Automatic text extraction & cleanup
+
+🧾 AI-Generated Unified Summaries
+
+Single coherent summary per document
+
+Preserves technical accuracy & chronology
+
+Clean HTML-rendered summaries for UI
+
+🔍 Semantic Search (Meaning > Keywords)
+
+Sentence-level vector embeddings
+
+Context-aware retrieval
+
+Re-ranking using cross-encoders
+
+❓ Ask Anything (RAG-Based Q&A)
+
+Ask natural language questions
+
+Answers grounded in uploaded documents
+
+Multi-document contextual reasoning
+
+🕘 Upload History & Document Tracking
+
+User-specific document history
+
+Quick access to summaries
+
+Secure document isolation
+
+📊 User Analytics
+
+Estimated time saved
+
+Documents processed per user
+
+Stored in SQLite for persistence
+
+🔐 Authentication-Ready Interface
+
+Firebase Google Authentication
+
+Profile management
+
+Secure access control
+
+🧠 System Architecture
+Frontend (HTML + Tailwind + JS)
+        |
+        v
+FastAPI Backend
+        |
+        ├── OCR & Text Extraction
+        ├── AI Summarization (Gemini)
+        ├── Semantic Chunking
+        ├── Vector Embeddings
+        ├── Pinecone Vector DB
+        ├── RAG Answer Generation
+        |
+        v
+SQLite Database (PrimaryDB)
+
+🛠️ Tech Stack
+🔹 Frontend
+
+HTML5
+
+Tailwind CSS
+
+JavaScript
+
+Firebase Authentication
+
+Responsive, glass-morphism UI
+
+Animated video backgrounds
+
+🔹 Backend
+
+FastAPI
+
+Python 3.10+
+
+SQLite (PrimaryDB)
+
+REST APIs
+
+🔹 AI & ML
+
+Google Gemini API
+
+Sentence Transformers
+
+Cross-Encoder Re-Ranker
+
 Pinecone Vector Database
-↓
-Vector Retrieval (top-k)
-↓
-Cross-Encoder Reranking
-↓
-Gemini Answer Generation (context-only)
 
----
+Retrieval-Augmented Generation (RAG)
 
-## Technology Stack
+🔹 OCR & Parsing
 
-| Layer | Technology |
-|-----|-----------|
-| Language | Python |
-| Embeddings | sentence-transformers/all-MiniLM-L6-v2 |
-| Reranking | cross-encoder/ms-marco-MiniLM-L-6-v2 |
-| Vector Database | Pinecone |
-| LLM | Google Gemini (gemini-2.5-flash) |
-| NLP Utilities | NLTK |
+PyMuPDF
 
----
+EasyOCR
 
-## Installation
+NLTK
 
-### Prerequisites
-- Python 3.9+
-- Active Pinecone account
-- Google Generative AI API access
-<<<<<<< HEAD
+📁 Project Structure
+📦 ContextIQ
+ ┣ 📁 Backend
+ ┃ ┣ 📄 main.py               # FastAPI routes
+ ┃ ┣ 📄 final_rag.py          # RAG pipeline
+ ┃ ┣ 📄 FileHandling.py       # OCR, parsing, DB ops
+ ┃ ┣ 📄 prompts.py            # Prompt engineering
+ ┃ ┣ 📄 API_key.env           # API keys
+ ┃ ┗ 📁 Database
+ ┃    ┗ 📄 PrimaryDB.db
+ ┣ 📁 Frontend
+ ┃ ┣ 📄 index.html            # Upload UI
+ ┃ ┣ 📄 summary.html          # AI summary view
+ ┃ ┣ 📄 history.html          # Upload history
+ ┃ ┣ 📄 full-search.html      # Semantic search
+ ┃ ┣ 📄 profile.html          # User profile
+ ┃ ┗ 📁 assets
+ ┣ 📄 README.md
 
-### Install Dependencies
+⚙️ Installation & Setup
+1️⃣ Clone Repository
+git clone https://github.com/your-repo/contextiq.git
+cd contextiq
 
-```bash
-pip install torch sentence-transformers nltk pinecone-client python-dotenv google-generativeai
-Configuration
-Create a .env file in the project root:
-GOOGLE_API_KEY=your_google_api_key_here
-PINECONE_API_KEY=your_pinecone_api_key_here
-PINECONE_INDEX_NAME=test
-The application will fail fast if required variables are missing.
-Usage
-Document Ingestion
-rag.ingest_document(raw_text, doc_id)
-What ingestion does:
-Deletes existing vectors for the document ID
-Applies semantic chunking
-Generates embeddings for each chunk
-Uploads vectors to Pinecone with metadata
-Querying Documents
-rag.search(
-    query="What is Machine Learning?",
-    allowed_doc_ids=["ai_doc"]
-)
-Important notes:
-Queries are restricted to the provided document IDs
-There is no implicit global search
-This prevents accidental cross-document leakage
-Answer Generation Policy
-The system enforces strict answer rules:
-Answers must be derived only from retrieved chunks
-External knowledge is never used
-If relevant context is missing, the system responds:
-The document does not specify this.
-This design significantly reduces hallucination risk.
-Example Queries
-queries = [
-    ("ai_doc", "What is Machine Learning?"),
-    ("bio_doc", "What is photosynthesis?"),
-    ("history_doc", "When did the French Revolution begin?")
-]
-=======
->>>>>>> origin/Prateek-backend
+2️⃣ Backend Setup
+pip install -r requirements.txt
+
+
+Create API_key.env:
+
+GEMINI_API_KEY=your_gemini_key
+PINECONE_API_KEY=your_pinecone_key
+PINECONE_INDEX_NAME=your_index_name
+
+3️⃣ Run Backend
+uvicorn main:app --reload
+
+4️⃣ Run Frontend
+
+Open index.html using Live Server or any static server.
+
+🔌 API Endpoints Overview
+Endpoint	Method	Description
+/preprocess	POST	Upload & process document
+/document/{doc_id}	GET	Fetch document summary
+/download/{doc_id}	GET	Download original file
+/ask	GET	RAG-based Q&A
+/history	GET	User document history
+/analysis	GET	User analytics
+🏆 Why ContextIQ Stands Out
+
+✅ True semantic understanding
+✅ Handles scanned & image documents
+✅ Production-grade UI & backend
+✅ Modular, scalable architecture
+✅ Proper RAG pipeline design
+✅ Built for real-world use cases
+
+🚀 Future Scope
+
+Multi-language OCR & summarization
+
+Collaborative workspaces
+
+Voice-based Q&A
+
+Document comparison engine
+
+Cloud storage integration
+
+Role-based access control
+
+👥 Team
+
+Built during GDG TechSprint Hackathon
+by passionate developers pushing the boundaries of AI-powered knowledge systems.
+
+🏁 Final Words
+
+ContextIQ doesn’t just read documents —
+it understands them, connects them, and reasons over them.
+
+⭐ If you like this project, don’t forget to star the repository!
