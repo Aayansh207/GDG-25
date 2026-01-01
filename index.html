@@ -13,7 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
     <script id="tailwind-config">
-        tailwind.config = { darkMode: "class", theme: { extend: { colors: { primary: "#f9ab00", accent: "#4285f4", surface: "#0A0A0A", nav_bg: "#111111" }, fontFamily: { display: ["Roboto", "sans-serif"] }, borderRadius: { DEFAULT: "8px" }, animation: { "spin-slow": "spin 3s linear infinite", "float": "float 4s ease-in-out infinite" }, boxShadow: { "glow-accent": "0 0 20px 0 rgba(66,133,244,0.5)" }, textShadow: { glow: "0 0 30px rgba(249, 171, 0, 0.6)" } } } };
+        tailwind.config = { darkMode: "class", theme: { extend: { colors: { primary: "#f9ab00", accent: "#4285f4", surface: "#0A0A0A", nav_bg: "#111111" }, fontFamily: { display: ["Roboto", "sans-serif"] }, borderRadius: { DEFAULT: "8px" }, animation: { "spin-slow": "spin 2.5s linear infinite" }, boxShadow: { "glow-accent": "0 0 20px 0 rgba(66,133,244,0.5)" }, textShadow: { glow: "0 0 30px rgba(249, 171, 0, 0.6)" } } } };
     </script>
     <style>
         body {
@@ -77,28 +77,10 @@
         #chevron-icon.rotate-180 {
             transform: rotate(180deg);
         }
-
-        /* Animations */
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        .animate-float {
-            animation: float 4s ease-in-out infinite;
-        }
-
-        @keyframes scan {
-            0%, 100% { transform: translateY(0); opacity: 0; }
-            50% { transform: translateY(400px); opacity: 1; }
-        }
-        
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
     </style>
 </head>
 
-<body class="font-display flex flex-col min-h-screen text-white overflow-hidden">
+<body class="font-display flex flex-col min-h-screen text-white">
     <div id="video-bg"><video autoplay muted loop playsinline preload="auto">
             <source src="./N.mp4" type="video/mp4">
         </video></div>
@@ -118,6 +100,7 @@
         </div>
 
         <div id="login-card" class="relative z-10 w-full max-w-md mx-4 transition-all duration-700">
+
             <div
                 class="absolute -top-4 -left-4 w-16 h-16 border-t-2 border-l-2 border-primary/60 rounded-tl-lg transition-all duration-500 group-hover:border-primary">
             </div>
@@ -129,6 +112,7 @@
 
             <div
                 class="bg-surface/80 backdrop-blur-2xl border border-white/10 p-10 rounded-xl shadow-2xl relative overflow-hidden group">
+
                 <div
                     class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent animate-[scan_3s_ease-in-out_infinite] opacity-50">
                 </div>
@@ -173,6 +157,22 @@
         </div>
     </div>
 
+    <style>
+        @keyframes scan {
+
+            0%,
+            100% {
+                transform: translateY(0);
+                opacity: 0;
+            }
+
+            50% {
+                transform: translateY(400px);
+                opacity: 1;
+            }
+        }
+    </style>
+
     <div class="absolute top-5 right-6 z-50 flex items-center gap-3" id="auth-container">
         <div id="auth-guest" class="hidden flex items-center gap-3"></div>
 
@@ -215,7 +215,6 @@
     </div>
 
     <div id="scaled-ui" class="fixed inset-0 flex">
-        
         <aside class="w-24 flex flex-col items-center bg-black/30 backdrop-blur-xl border-r border-white/5 z-20 h-full">
             <div class="text-primary flex items-center justify-center py-8">
                 <img src="./logo.jpg" class="h-10 w-auto opacity-80" />
@@ -240,9 +239,8 @@
             </div>
         </aside>
 
-        <main class="flex-1 p-6 flex flex-col gap-4 relative overflow-hidden h-full">
-            
-            <div class="pt-6 px-6 shrink-0">
+        <main class="flex-1 p-6 flex flex-col gap-8 scroll-container min-h-screen overflow-y-auto relative">
+            <div class="pt-6 px-6">
                 <div class="flex flex-col md:flex-row gap-x-16 gap-y-8">
                     <div>
                         <p id="total-docs" class="text-3xl font-bold text-primary text-glow">...</p>
@@ -255,102 +253,36 @@
                 </div>
             </div>
 
-            <div class="flex-1 flex items-center justify-center w-full min-h-0 overflow-hidden">
-                <div id="drop-zone"
-                    class="relative group flex flex-col items-center justify-evenly w-full max-w-[750px] mx-auto 
-                           h-full max-h-[500px] 
-                           bg-surface/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden transition-all duration-500
-                           hover:border-accent/50 hover:shadow-[0_0_30px_rgba(66,133,244,0.15)]
-                           p-6 md:p-10"> <div class="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black_40%,transparent_100%)] pointer-events-none"></div>
-                    <div class="absolute inset-4 border-2 border-dashed border-white/20 rounded-xl transition-colors duration-300 group-hover:border-accent/60 pointer-events-none"></div>
-
-                    <div class="absolute top-8 left-8 w-2 h-2 bg-primary/80 rounded-full animate-pulse"></div>
-                    <div class="absolute top-8 right-8 text-[10px] font-mono text-white/30 tracking-widest group-hover:text-accent transition-colors">SYS_READY</div>
-                    <div class="absolute bottom-8 left-8 text-[10px] font-mono text-white/30 tracking-widest group-hover:text-accent transition-colors">SECURE_UPLINK</div>
-                    <div class="absolute bottom-8 right-8 w-2 h-2 bg-accent/80 rounded-full animate-pulse delay-700"></div>
-
-                    <div class="relative z-10 flex flex-col items-center gap-4 w-full">
-                        
-                        <div class="relative w-24 h-24 md:w-32 md:h-32 flex items-center justify-center">
-                            <div class="absolute inset-0 border border-t-accent border-r-transparent border-b-primary border-l-transparent rounded-full animate-spin-slow opacity-60"></div>
-                            <div class="absolute inset-4 bg-gradient-to-tr from-accent/20 to-primary/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-                            <div class="animate-float relative z-10 bg-surface border border-white/10 p-5 rounded-2xl shadow-2xl">
-                                <span class="material-symbols-outlined text-4xl md:text-5xl text-transparent bg-clip-text bg-gradient-to-br from-white to-white/50 group-hover:from-accent group-hover:to-primary transition-all duration-500">
-                                    cloud_upload
-                                </span>
-                            </div>
-                            <div class="absolute -top-2 -right-2 w-6 h-6 bg-surface border border-white/10 rounded-lg flex items-center justify-center animate-bounce delay-100">
-                                <span class="text-[10px] font-bold text-primary">PDF</span>
-                            </div>
-                            <div class="absolute -bottom-1 -left-2 w-6 h-6 bg-surface border border-white/10 rounded-lg flex items-center justify-center animate-bounce delay-300">
-                                <span class="text-[10px] font-bold text-accent">IMG</span>
-                            </div>
+            <div id="drop-zone"
+                class="flex flex-col items-center justify-center gap-8 border-2 border-dashed border-accent w-full max-w-[700px] mx-auto min-h-[450px] bg-black/40 backdrop-blur-custom px-6 py-10 cursor-pointer shadow-glow-accent rounded-xl transition overflow-hidden">
+                <div class="flex flex-col items-center gap-4 w-full">
+                    <span class="material-symbols-outlined !text-7xl text-accent">cloud_upload</span>
+                    <p class="text-white text-2xl font-bold">Drag & Drop Files Here</p>
+                </div>
+                <div class="flex flex-col items-center justify-center w-full min-h-[80px]">
+                    <div id="upload-block"><button id="select-btn"
+                            class="rounded-xl h-14 px-10 bg-accent text-black font-bold text-lg hover:brightness-110">Select
+                            File</button></div>
+                    <input id="file-input" type="file" class="hidden"
+                        accept="application/pdf,image/jpeg,image/png,image/jpg,text/plain" />
+                    <div id="loader" class="hidden flex flex-col items-center gap-3">
+                        <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin">
                         </div>
-
-                        <div class="text-center space-y-2">
-                            <h3 class="text-xl md:text-2xl font-bold text-white tracking-tight group-hover:text-glow transition-all duration-300">
-                                Upload Knowledge Base
-                            </h3>
-                            <p class="text-white/40 text-xs md:text-sm max-w-xs mx-auto">
-                                Drag & drop files here or browse to begin the ingestion process.
-                            </p>
-                        </div>
-
-                        <div class="mt-2 flex flex-col items-center justify-center w-full">
-                            
-                            <div id="upload-block" class="transition-transform duration-300 hover:scale-105">
-                                <button id="select-btn"
-                                    class="relative overflow-hidden rounded-lg h-12 px-8 bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 hover:border-accent/50 transition-all duration-300 group/btn">
-                                    <span class="relative z-10 flex items-center gap-2">
-                                        <span class="material-symbols-outlined text-lg">folder_open</span>
-                                        Select Local File
-                                    </span>
-                                    <div class="absolute inset-0 bg-gradient-to-r from-accent/20 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
-                                </button>
-                            </div>
-
-                            <input id="file-input" type="file" class="hidden" accept="application/pdf,image/jpeg,image/png,image/jpg,text/plain" />
-
-                            <div id="loader" class="hidden flex flex-col items-center gap-3">
-                                <div class="relative w-12 h-12">
-                                    <div class="absolute inset-0 border-t-2 border-accent rounded-full animate-spin"></div>
-                                    <div class="absolute inset-2 border-r-2 border-primary rounded-full animate-spin-slow reverse"></div>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="w-1 h-1 bg-white rounded-full animate-bounce"></span>
-                                    <span class="w-1 h-1 bg-white rounded-full animate-bounce delay-100"></span>
-                                    <span class="w-1 h-1 bg-white rounded-full animate-bounce delay-200"></span>
-                                </div>
-                                <p class="text-xs text-accent font-mono uppercase tracking-widest animate-pulse">Processing Data</p>
-                            </div>
-
-                            <button id="summarize-btn"
-                                class="hidden relative overflow-hidden rounded-lg h-12 px-10 bg-accent text-black font-bold text-lg hover:brightness-110 shadow-[0_0_20px_rgba(66,133,244,0.4)] transition-all transform hover:scale-105">
-                                <div class="absolute inset-0 bg-white/20 translate-y-full hover:translate-y-0 transition-transform duration-300"></div>
-                                <span class="relative flex items-center gap-2">
-                                    <span class="material-symbols-outlined">auto_awesome</span>
-                                    Analyze & Summarize
-                                </span>
-                            </button>
-
-                        </div>
+                        <p class="text-white/70">Processing...</p>
                     </div>
+                    <button id="summarize-btn"
+                        class="hidden rounded-xl h-14 px-10 bg-primary text-black font-bold text-lg hover:brightness-110">Summarize
+                        Now</button>
                 </div>
             </div>
 
-            <div class="w-full max-w-[700px] mx-auto shrink-0 pb-6 z-20">
-                <form id="search-form" class="flex group relative">
-                    <div class="absolute -inset-1 bg-gradient-to-r from-accent/30 via-primary/30 to-accent/30 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition duration-700 animate-pulse"></div>
-                    <input id="search-input" type="text" placeholder="Ask ContextIQ anything..." 
-                        class="relative flex-1 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-l-2xl px-8 py-5 text-white placeholder-white/50 
-                               focus:outline-none focus:border-accent/60 focus:bg-black/60 focus:shadow-[0_0_20px_rgba(66,133,244,0.2)] 
-                               transition-all duration-300 z-10" />
-                    <button type="submit" 
-                        class="relative bg-white/5 border-y border-r border-white/10 text-white px-8 rounded-r-2xl 
-                               hover:bg-accent hover:text-black hover:border-accent hover:shadow-[0_0_15px_rgba(66,133,244,0.5)]
-                               transition-all duration-300 z-10 flex items-center justify-center group/btn">
-                        <span class="material-symbols-outlined text-3xl group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
-                    </button>
+            <div class="max-w-[700px] mx-auto w-full mt-4">
+                <form id="search-form" class="flex gap-0">
+                    <input id="search-input" type="text" placeholder="Ask anything..."
+                        class="flex-1 bg-surface/80 backdrop-blur-custom border border-r-0 border-accent/50 rounded-l-xl px-6 py-4 text-white focus:outline-none focus:border-accent" />
+                    <button type="submit"
+                        class="bg-accent text-black font-bold px-6 py-3 rounded-r-xl hover:brightness-110"><span
+                            class="material-symbols-outlined text-2xl">search</span></button>
                 </form>
             </div>
         </main>
@@ -367,7 +299,7 @@
         const profileBtn = document.getElementById('profile-btn');
         const userPhoto = document.getElementById('user-photo');
         const userName = document.getElementById('user-name');
-        const userEmail = document.getElementById('user-email');
+        const userEmail = document.getElementById('user-email'); // Added ref
         const userPhotoBig = document.getElementById('user-photo-big');
         const userNameBig = document.getElementById('user-name-big');
         const userEmailBig = document.getElementById('user-email-big');
@@ -398,32 +330,46 @@
             const statusText = document.getElementById('status-text');
 
             if (user) {
+                // --- ANIMATION SEQUENCE START ---
+
                 if (loginOverlay && !loginOverlay.classList.contains('hidden')) {
+
+                    // Step 1: UI Feedback (Access Granted)
                     if (statusDot) {
                         statusDot.classList.remove('bg-red-500');
                         statusDot.classList.add('bg-green-500');
                     }
                     if (statusText) statusText.textContent = "ACCESS GRANTED // ESTABLISHING LINK";
 
+                    // Step 2: The "Hyper-Jump" Effect (200ms delay to read text)
                     setTimeout(() => {
+                        // Card flies into camera
                         if (loginCard) {
-                            loginCard.style.transform = "scale(5)";
-                            loginCard.style.opacity = "0";
-                            loginCard.style.filter = "blur(10px)";
+                            loginCard.style.transform = "scale(5)"; // Zoom IN huge
+                            loginCard.style.opacity = "0";          // Fade out
+                            loginCard.style.filter = "blur(10px)";  // Motion blur effect
                         }
+
+                        // Background expands
                         if (bgElements) {
                             bgElements.style.transform = "scale(1.5)";
                         }
+
+                        // Overlay container fades out
                         loginOverlay.style.opacity = "0";
                         loginOverlay.style.pointerEvents = "none";
+
+                        // Step 3: Remove from DOM after animation completes
                         setTimeout(() => {
                             loginOverlay.classList.add('hidden');
-                        }, 800);
+                        }, 800); // Matches CSS transition time
                     }, 300);
                 } else {
+                    // Already logged in (page refresh), just hide immediately
                     if (loginOverlay) loginOverlay.classList.add('hidden');
                 }
 
+                // --- RESTORE UI DATA (Keep your existing logic below) ---
                 if (profileBtn) profileBtn.classList.remove('hidden');
                 if (userPhoto) userPhoto.src = user.photoURL;
                 if (userPhotoBig) userPhotoBig.src = user.photoURL;
@@ -432,12 +378,18 @@
                 if (userNameBig) userNameBig.textContent = user.displayName;
                 if (userEmailBig) userEmailBig.textContent = user.email;
 
+                // Specific file logic
                 if (typeof currentUserUid !== 'undefined') currentUserUid = user.uid;
                 if (typeof loadStats === 'function') loadStats(user.uid);
+                if (typeof loadHistory === 'function') loadHistory(user.uid);
+                if (typeof updateProfileUI === 'function') updateProfileUI(user);
+                if (typeof loadSummary === 'function') loadSummary(); // For summary.html
 
             } else {
+                // --- LOGGED OUT STATE ---
                 if (loginOverlay) {
                     loginOverlay.classList.remove('hidden');
+                    // Reset styles for next login
                     loginOverlay.style.opacity = "1";
                     loginOverlay.style.pointerEvents = "auto";
                     if (loginCard) {
