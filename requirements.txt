@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-multipart
+google-genai
+pinecone-client
+sentence-transformers
+torch
+nltk
+pymupdf
+easyocr
+python-dotenv
+pydantic
