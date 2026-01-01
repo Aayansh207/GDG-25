@@ -201,34 +201,28 @@
     </style>
 
     <div id="scaled-ui" class="fixed inset-0 flex">
-        <aside class="w-20 flex flex-col items-center bg-nav_bg/80 backdrop-blur-custom border-r border-white/10 z-20">
-            <div class="text-primary flex items-center justify-center py-6"><img src="./logo.jpg" class="h-10 w-auto" />
+        <aside class="w-24 flex flex-col items-center bg-black/30 backdrop-blur-xl border-r border-white/5 z-20 h-full">
+            <div class="text-primary flex items-center justify-center py-8">
+                <img src="./logo.jpg" class="h-10 w-auto opacity-80" />
             </div>
-            <nav class="flex flex-col items-center gap-8 mt-6 flex-1">
-                <a class="text-white/60 hover:text-accent" href="index.html"><svg class="w-10 h-10" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg></a>
-                <a class="text-accent hover:text-accent" href="summary.html"><svg class="w-10 h-10" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg></a>
-                <a class="text-white/60 hover:text-accent" href="history.html"><svg class="w-10 h-10" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 12l-3-3" />
-                    </svg></a>
-                <a class="text-white/60 hover:text-accent" href="full-search.html"><svg class="w-10 h-10" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg></a>
-                <a class="text-white/60 hover:text-accent" href="profile.html"><span
-                        class="material-symbols-outlined text-4xl">person</span></a>
+            <nav class="flex flex-col items-center gap-10 mt-auto mb-auto w-full">
+                <a class="text-white/40 hover:text-primary transition-colors" href="index.html">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                </a>
+                <a class="text-accent hover:text-white transition-colors relative group" href="summary.html">
+                    <div class="absolute inset-0 bg-accent/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <svg class="w-8 h-8 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                </a>
+                <a class="text-white/40 hover:text-primary transition-colors" href="history.html">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 12l-3-3" /></svg>
+                </a>
+                <a class="text-white/40 hover:text-primary transition-colors" href="full-search.html">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </a>
             </nav>
+            <div class="py-8">
+                <a class="text-white/40 hover:text-white transition-colors" href="profile.html"><span class="material-symbols-outlined text-3xl">person</span></a>
+            </div>
         </aside>
 
         <main class="flex-1 pt-5 pb-10 px-5 md:pt-8 md:px-10 scroll-container min-h-screen overflow-y-auto relative">
