@@ -169,7 +169,38 @@ class FullRAGSystem:
         if not retrieved_chunks: return "No context found."
         context = "\n---\n".join(c["text"] for c in retrieved_chunks)
         
-        prompt = f"Use the context below to answer: {query}\n\nContext:\n{context}"
+        prompt = f"""
+You are an assistant answering questions using retrieved document context.
+
+Strict rules (must follow exactly):
+
+- Use ONLY the information present in the provided context
+- Do NOT add external knowledge, assumptions, or interpretations
+- If the context does not contain enough information, clearly state that
+- Do NOT invent lists, steps, or details that are not explicitly mentioned
+- Preserve factual accuracy over fluency
+
+Formatting rules (MANDATORY):
+
+- Output MUST be valid HTML only
+- Use <p>, <ul>, <li>, <strong>, <h3>, <h4>, <h5> and <br> tags where appropriate
+- Do NOT use markdown
+- Do NOT use **, *, bullet symbols, or numbering characters
+- Do NOT include explanations outside HTML
+- Do NOT include code blocks
+
+Answer behavior:
+
+- If the question asks for a list, output a proper <ul> with <li> items
+- If order or sequence is implied in the context, preserve it
+- Keep the answer concise, complete, and directly relevant to the query
+
+Question:
+{query}
+
+Context:
+{context}
+"""
         
         try:
             # FIXED: Corrected call for google-genai library
