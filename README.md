@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+<<<<<<< HEAD
+=======
+  <title>ContextIQ – AI Document Intelligence</title>
+>>>>>>> d45a367698d376337058376c33039e92fe80a1b9
 </head>
 
 <body>
@@ -187,7 +191,11 @@ ContextIQ/
 
 <h3>1. Clone Repository</h3>
 <pre>
+<<<<<<< HEAD
 git clone https://github.com/Aayansh207/GDG-25.git
+=======
+git clone https://github.com/your-repo/contextiq.git
+>>>>>>> d45a367698d376337058376c33039e92fe80a1b9
 cd contextiq
 </pre>
 
