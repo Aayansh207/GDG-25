@@ -4,7 +4,7 @@ import torch
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from nltk.tokenize import sent_tokenize
 from dotenv import load_dotenv
-from pinecone import Pinecone
+from pinecone import Pinecone, ServerlessSpec
 from google import genai
 from pathlib import Path  # Add this import
 
@@ -51,13 +51,22 @@ class FullRAGSystem:
         
         self.pc = Pinecone(api_key=pinecone_key)
         index_name = index_name or os.getenv("PINECONE_INDEX_NAME", "test")
-        
-        # Ensure index exists or is connected correctly
-        try:
-            self.index = self.pc.Index(index_name)
-        except Exception as e:
-            print(f"Error connecting to Pinecone index: {e}")
-            raise
+
+        # ✅ Ensure index exists
+        existing_indexes = self.pc.list_indexes().names()
+
+        if index_name not in existing_indexes:
+            self.pc.create_index(
+                name=index_name,
+                dimension=384,  # MUST match all-MiniLM-L6-v2
+                metric="cosine",
+                spec=ServerlessSpec(
+                    cloud="aws",      # change if your console shows gcp
+                    region="us-east-1"  # MUST match Pinecone console
+                )
+            )
+
+        self.index = self.pc.Index(index_name)
 
     def expand_query(self, query: str) -> list[str]:
         return [query]
@@ -108,22 +117,25 @@ class FullRAGSystem:
     def embedding(self, text: str) -> list[float]:
         return self.embed_model.encode(text, normalize_embeddings=True).tolist()
 
-    def upload_raw_text(self, raw_text: str, doc_id: str):
-        chunks = self.semantic_chunk(raw_text)
-        vectors = []
-        for idx, chunk in enumerate(chunks):
-            if not chunk.strip(): continue
-            vectors.append({
-                "id": f"{doc_id}-chunk-{idx}",
-                "values": self.embedding(chunk),
-                "metadata": {"doc_id": doc_id, "text": chunk},
-            })
-        if vectors:
-            # Upsert in batches if vectors are many
-            self.index.upsert(vectors=vectors)
-        print(f"[UPLOAD] Success: doc_id={doc_id}")
+    def upload_raw_text(self, raw_text: list, doc_id: str):
+        
+        for page_no, text in enumerate(raw_text):
+            chunks = self.semantic_chunk(text)
+            vectors = []
+            for idx, chunk in enumerate(chunks):
+                if not chunk.strip(): continue
+                vectors.append({
+                    "id": f"{doc_id}-chunk{idx}-page_no{page_no+1}",
+                    "values": self.embedding(chunk),
+                    "metadata": {"doc_id": doc_id, "text": chunk, "page_no" : page_no+1},
+                })
+            if vectors:
+                # Upsert in batches if vectors are many
+                self.index.upsert(vectors=vectors)
+            print(f"[UPLOAD] Success: doc_id={doc_id}")
 
     def retrieve_candidates_from_pinecone(self, query: str, allowed_doc_ids: list[str], k: int = 10) -> list[dict]:
+        sources = []
         q_vec = self.embedding(query)
         res = self.index.query(
             vector=q_vec,
@@ -139,9 +151,10 @@ class FullRAGSystem:
                 "pinecone_score": float(match.score),
                 "doc_id": match.metadata["doc_id"]
             })
+            sources.append({"doc_id":match.metadata["doc_id"], "page_no":match.metadata["page_no"]})
         return candidates
 
-    def rerank_candidates(self, query: str, candidates: list, top_n: int = 3) -> list:
+    def rerank_candidates(self, query: str, candidates: list, top_n: int = 5) -> list:
         if not candidates: return []
         pairs = [[query, c["text"]] for c in candidates]
         rerank_scores = self.reranker.predict(pairs)
@@ -169,12 +182,14 @@ class FullRAGSystem:
             return f"LLM Error: {str(e)}"
 
     def search(self, query: str, allowed_doc_ids: list[str]) -> str:
-        candidates = self.retrieve_candidates_from_pinecone(query, allowed_doc_ids)
+        candidates = self.retrieve_candidates_from_pinecone(query, allowed_doc_ids, k = 15)
         if not candidates: return "No relevant documents found."
         top_chunks = self.rerank_candidates(query, candidates)
-        return self.generate_answer(query, top_chunks)
+        ans = self.generate_answer(query, top_chunks)
+        print(ans)
+        return ans
 
-    def ingest_document(self, raw_text: str, doc_id: str):
+    def ingest_document(self, raw_text: list, doc_id: str):
         # Pinecone doesn't have a "delete by metadata" in all index types 
         # without a specialized setup, but this works for most:
         try:

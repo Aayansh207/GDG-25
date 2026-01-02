@@ -17,6 +17,7 @@ from pathlib import Path
 from datetime import date
 from dotenv import load_dotenv
 from dataclasses import dataclass
+from nltk.tokenize import sent_tokenize
 
 
 # Custom typecasting classes
@@ -171,29 +172,34 @@ class FileHandler:
         self.reader = None
         self.database_manager = DatabaseManager()
 
-    def extract_PDF_text(self, filePath: str) -> str:
+    def extract_PDF_text(self, filePath: str) -> list:
         """Function responsible for extracting the text from PDF files."""
+
+        extracted_text = []
 
         with pymupdf.open(filePath) as doc:
 
             self.file_metadata = doc.metadata  # getting the pdf file metadata
-            text = chr(12).join([page.get_text() for page in doc])  # reading the file
+            # reading the file
 
-        # removing excess line breaks
+            for page in doc:
+                text = page.get_text()
 
-        text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
-        text = re.sub(r"\n{2,}", "\n\n", text)
+                # removing excess line breaks
+                text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
+                text = re.sub(r"\n{2,}", "\n\n", text)
+                extracted_text.append(text)
 
-        if text.strip():
+        if extracted_text:
 
             return (
-                text.strip()
+                extracted_text
             )  # returning the text by removing the trailing white spaces, if any
 
         else:
             raise ValueError("Unsupported pdf file!")
 
-    def image_OCR(self, imagePath: str) -> str:
+    def image_OCR(self, imagePath: str) -> list:
         """Function responsible for performing OCR on images to extract text"""
 
         if not self.reader:
@@ -204,10 +210,10 @@ class FileHandler:
         text = ""
         text = self.reader.readtext(imagePath)
         lines = [entry[1] for entry in text]
-        text = "\n".join(lines)
+        text = ["\n".join(lines)]
 
-        if text.strip():
-            return text.strip()
+        if text:
+            return text
         else:
             raise ValueError("Unsupported image file!")
 
@@ -223,7 +229,27 @@ class FileHandler:
         elif file.lower().endswith(".txt"):
 
             with open(file, "rt", encoding="utf-8", errors="ignore") as f:
-                self.text = f.read()
+                text = f.read()
+                sentences = sent_tokenize(text)
+            
+            self.text = []
+            current_page = ""
+
+            for sentence in sentences:
+                if current_page and len(current_page.split()) + len(sentence.split()) > 300:
+                    self.text.append(current_page.strip())
+                    current_page = ""
+
+                if current_page:
+                    current_page += " " + sentence
+                
+                else:
+                    current_page = sentence
+            
+            if current_page.strip():
+                self.text.append(current_page)
+                current_page = ""
+
 
             if not self.text.strip():
                 raise ValueError("Unsupported/empty text file!")
@@ -237,7 +263,7 @@ class FileHandler:
 
         try:
             self.summary = self.compareAndSummarize(
-                docs_summaries_compare=None, doc_text=self.text
+                docs_summaries_compare=None, doc_text="\n\n".join(self.text)
             )
 
         except Exception as e:
@@ -245,7 +271,7 @@ class FileHandler:
 
         # Getting the estimated time saved
         self.time_saved_for_this_doc = self.estimatedTimeSaved(
-            text_words=(len(self.text.split())), summary_words=len(self.summary.split())
+            text_words=(len(("\n\n".join(self.text)).split())), summary_words=len(self.summary.split())
         )
 
         self.database_manager.add_data(
@@ -361,10 +387,21 @@ class FileHandler:
         summary_words: int,
         reading_speed: int = 180,
         summary_read_speed: int = 210,
-        summary_gen_time_min: int = 3,
         semantic_search_time_min: int = 1,
     ):
         """Function responsible for estimating the amount of time saved per document."""
+
+        if text_words <= 800:
+            summary_gen_time_min = 0.5
+        
+        elif text_words <=4000:
+            summary_gen_time_min = 1.5
+        
+        elif text_words <=9000:
+            summary_gen_time_min = 2.5
+
+        else:
+            summary_gen_time_min = 3.5
 
         manual_time = text_words / reading_speed
 
@@ -374,11 +411,15 @@ class FileHandler:
             + semantic_search_time_min
         )
 
-        return max(manual_time - summary_read_time, 0)
+        time_saved = manual_time - summary_read_time
+        time_saved = min(time_saved, 0.85*manual_time)
+
+        return max(time_saved, 0)
 
 
 # Testing
 
 if __name__ == "__main__":
 
-    ...
+    handler = FileHandler()
+    print(handler.addFiles(file=r"C:\\Users\\shrey\\Downloads\\Asana.pdf", user_id="nigga2.0"))
