@@ -220,27 +220,47 @@ async def get_profile_stats(user_id: str):
 @app.get("/search")
 async def global_search(user_id: str, query: str, top_k: int = 15):
     """
-    Performs RAG search restricted to the user's documents.
+    Performs RAG search restricted to the user's documents and returns sources.
     """
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # 1. Get ONLY this user's doc_ids
-        cursor.execute("SELECT doc_id FROM primarydb WHERE user_id = ?", (user_id,))
+        # 1. Get ONLY this user's doc_ids and Filenames
+        cursor.execute("SELECT doc_id, filename FROM primarydb WHERE user_id = ?", (user_id,))
         rows = cursor.fetchall()
+        
+        # Create a map for quick filename lookup: {doc_id: filename}
+        user_docs_map = {row[0]: row[1] for row in rows}
         conn.close()
 
-        if not rows:
+        if not user_docs_map:
             return {"results": []}
 
-        user_doc_ids = [row[0] for row in rows]
+        user_doc_ids = list(user_docs_map.keys())
         
         # 2. Pass allowed IDs to RAG system
-        answer = rag_system.search(query=query, allowed_doc_ids=user_doc_ids)
+        rag_output = rag_system.search(query=query, allowed_doc_ids=user_doc_ids)
+        
+        answer = rag_output["answer"]
+        source_chunks = rag_output["sources"]
         
         if "No relevant documents found" in answer:
             return {"results": []}
+
+        # 3. Process sources to get unique documents (deduplicate chunks from same doc)
+        unique_sources = {}
+        for chunk in source_chunks:
+            did = chunk.get("doc_id")
+            # Only add if we haven't seen this doc yet AND it belongs to the user
+            if did and did not in unique_sources and did in user_docs_map:
+                unique_sources[did] = {
+                    "doc_id": did,
+                    "filename": user_docs_map[did]
+                }
+        
+        # Convert dictionary values to list
+        final_sources_list = list(unique_sources.values())
 
         return {
             "results": [
@@ -248,7 +268,8 @@ async def global_search(user_id: str, query: str, top_k: int = 15):
                     "id": "result", 
                     "filename": "Your Documents",
                     "score": 1.0,
-                    "snippet": answer
+                    "snippet": answer,
+                    "sources": final_sources_list  # <--- This is what full-search.html needs
                 }
             ]
         }

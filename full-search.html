@@ -423,50 +423,68 @@
         }
 
         async function performSearch(query, uid) {
+            // 1. Show Loading State
             resultsContainer.innerHTML = `<div class="flex items-center justify-center gap-4 py-16"><div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div><p class="text-white/70">Analyzing documents...</p></div>`;
+            
             try {
+                // 2. Fetch from Backend
                 const res = await fetch(`http://127.0.0.1:8000/search?user_id=${uid}&query=${encodeURIComponent(query)}&top_k=15`);
+                
                 if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+                
                 const data = await res.json();
-                resultsContainer.innerHTML = "";
-                if (!data.results || data.results.length === 0) { resultsContainer.innerHTML = `<div class="text-center py-16 text-white/50 italic">No matching content found.</div>`; return; }
+                resultsContainer.innerHTML = ""; // Clear loading spinner
+                
+                // 3. Handle No Results
+                if (!data.results || data.results.length === 0) { 
+                    resultsContainer.innerHTML = `<div class="text-center py-16 text-white/50 italic">No matching content found.</div>`; 
+                    return; 
+                }
+
+                // 4. Render Results
                 data.results.forEach((result, index) => {
                     const card = document.createElement("div");
                     card.className = "bg-surface/80 backdrop-blur-custom rounded-xl p-6 border border-primary/30 shadow-glow-primary/20";
 
+                    // --- SOURCES LOGIC START ---
                     let sourcesHTML = '';
+                    
+                    // Check if sources exist and are not empty
                     if (result.sources && result.sources.length > 0) {
                         sourcesHTML = `
-            <div class="mt-6 pt-6 border-t border-white/10">
-                <h4 class="text-sm font-bold text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-base">description</span>
-                    Sources
-                </h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    ${result.sources.map(source => `
-                        <a href="summary.html?id=${source.doc_id}" 
-                           class="block bg-black/30 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-3 hover:border-accent/50 hover:bg-accent/5 transition-all group">
-                            <div class="flex items-center justify-between">
-                                <span class="text-white/90 text-sm truncate pr-2">${source.filename || 'Untitled Document'}</span>
-                                <span class="material-symbols-outlined text-white/40 group-hover:text-accent text-sm">arrow_forward</span>
-                            </div>
-                            <div class="text-xs text-white/40 mt-1">ID: ${source.doc_id.substring(0, 8)}...</div>
-                        </a>
-                    `).join('')}
-                </div>
-            </div>`;
+                            <div class="mt-6 pt-6 border-t border-white/10">
+                                <h4 class="text-sm font-bold text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-base">description</span>
+                                    Sources
+                                </h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    ${result.sources.map(source => `
+                                        <a href="summary.html?id=${source.doc_id}" 
+                                           class="block bg-black/30 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-3 hover:border-accent/50 hover:bg-accent/5 transition-all group">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-white/90 text-sm truncate pr-2">${source.filename || 'Untitled Document'}</span>
+                                                <span class="material-symbols-outlined text-white/40 group-hover:text-accent text-sm">arrow_forward</span>
+                                            </div>
+                                            <div class="text-xs text-white/40 mt-1">ID: ${source.doc_id.substring(0, 8)}...</div>
+                                        </a>
+                                    `).join('')}
+                                </div>
+                            </div>`;
                     } else {
-                        sourcesHTML = `<div class="mt-6 pt-6 border-t border-white/10 text-white/40 text-sm italic">No specific sources available</div>`;
+                        // Fallback if no specific source metadata is returned
+                        sourcesHTML = `<div class="mt-6 pt-6 border-t border-white/10 text-white/40 text-sm italic">No specific sources metadata available.</div>`;
                     }
+                    // --- SOURCES LOGIC END ---
 
+                    // Assemble the full card
                     card.innerHTML = `
-        <h3 class="text-xl font-bold text-primary mb-4 flex items-center gap-2">
-            <span class="material-symbols-outlined">auto_awesome</span>
-            Relevant Insight #${index + 1}
-        </h3>
-        <div class="text-white/90 leading-relaxed text-base mb-6">${formatText(result.snippet)}</div>
-        ${sourcesHTML}
-    `;
+                        <h3 class="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined">auto_awesome</span>
+                            Relevant Insight
+                        </h3>
+                        <div class="text-white/90 leading-relaxed text-base mb-6">${formatText(result.snippet)}</div>
+                        ${sourcesHTML}
+                    `;
 
                     resultsContainer.appendChild(card);
                 });

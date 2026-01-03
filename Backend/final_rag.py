@@ -212,13 +212,27 @@ Context:
         except Exception as e:
             return f"LLM Error: {str(e)}"
 
-    def search(self, query: str, allowed_doc_ids: list[str]) -> str:
-        candidates = self.retrieve_candidates_from_pinecone(query, allowed_doc_ids, k = 15)
-        if not candidates: return "No relevant documents found."
+    def search(self, query: str, allowed_doc_ids: list[str]) -> dict:
+        """
+        Modified search to return both the answer and the source chunks.
+        """
+        candidates = self.retrieve_candidates_from_pinecone(query, allowed_doc_ids, k=15)
+        
+        if not candidates: 
+            return {
+                "answer": "No relevant documents found.", 
+                "sources": []
+            }
+            
         top_chunks = self.rerank_candidates(query, candidates)
         ans = self.generate_answer(query, top_chunks)
-        print(ans)
-        return ans
+        
+        # Return dictionary with answer AND sources
+        print(f"[RAG] Answer generated. Using {len(top_chunks)} chunks.")
+        return {
+            "answer": ans,
+            "sources": top_chunks
+        }
 
     def ingest_document(self, raw_text: list, doc_id: str):
         # Pinecone doesn't have a "delete by metadata" in all index types 
