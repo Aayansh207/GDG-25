@@ -373,8 +373,9 @@
         const qaSection = document.getElementById("qa-section");
         let currentDocId = null;
 
-        // FIXED: Bold text parsing function
+        // FIXED: Bold text parsing function with safety check
         function parseBold(text) {
+            if (!text) return "";
             return text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-accent">$1</strong>');
         }
 

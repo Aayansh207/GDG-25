@@ -142,8 +142,14 @@ async def ask_question(query: str, doc_ids: Optional[str] = None):
         else:
             target_ids = doc_ids.split(",")
 
-        answer = rag_system.search(query=query, allowed_doc_ids=target_ids)
-        return {"query": query, "answer": answer}
+        # FIX: Unpack the dictionary returned by rag_system.search
+        rag_result = rag_system.search(query=query, allowed_doc_ids=target_ids)
+        
+        return {
+            "query": query, 
+            "answer": rag_result["answer"],  # Extract just the text string
+            "sources": rag_result.get("sources", []) # Optional: include sources if needed
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
