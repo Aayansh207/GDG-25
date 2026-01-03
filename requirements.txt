@@ -1,12 +1,20 @@
+# Web Framework and Server
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
+pydantic
+
+# AI and LLM Integrations
 google-genai
-pinecone-client
+pinecone-client>=3.0.0
 sentence-transformers
 torch
+
+# Text Processing & OCR
 nltk
 pymupdf
 easyocr
+opencv-python-headless
+
+# Utilities
 python-dotenv
-pydantic
