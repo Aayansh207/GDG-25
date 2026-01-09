@@ -242,3 +242,15 @@ Context:
         except:
             pass 
         self.upload_raw_text(raw_text, doc_id)
+    def delete_document(self, doc_id: str):
+        """
+        Deletes all vectors associated with a specific document ID.
+        """
+        try:
+            # Delete vectors by metadata filter
+            self.index.delete(filter={"doc_id": {"$eq": doc_id}})
+            print(f"[RAG] Successfully deleted vectors for doc_id: {doc_id}")
+            return True
+        except Exception as e:
+            print(f"[RAG] Error deleting vectors: {e}")
+            return False

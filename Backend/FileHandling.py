@@ -132,7 +132,18 @@ class DatabaseManager:
                         primarydb.summary,
                     ),
                 )
-
+    def delete_data(self, doc_id: str) -> bool:
+        """Removes a document entry from the primary database."""
+        try:
+            with sqlite3.connect("Database/PrimaryDB.db") as connection:
+                cursor = connection.cursor()
+                cursor.execute("DELETE FROM primarydb WHERE doc_id = ?", (doc_id,))
+                connection.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Database deletion error: {e}")
+            return False
+        
     def get_data(self, doc_id: str) -> dict:
         """Function responsible for extracting the data about a file from the database from its doc_id"""
 
@@ -172,6 +183,24 @@ class FileHandler:
         self.reader = None
         self.database_manager = DatabaseManager()
 
+    def deleteFile(self, doc_id: str, storage_dir: str) -> bool:
+        """
+        Orchestrates the deletion of physical files and database entries.
+        """
+        db_success = self.database_manager.delete_data(doc_id)
+        file_deleted = False
+        if os.path.exists(storage_dir):
+            for filename in os.listdir(storage_dir):
+                if filename.startswith(doc_id):
+                    try:
+                        os.remove(os.path.join(storage_dir, filename))
+                        file_deleted = True
+                        break
+                    except OSError as e:
+                        print(f"Error deleting physical file: {e}")
+
+        return db_success or file_deleted
+    
     def extract_PDF_text(self, filePath: str) -> list:
         """Function responsible for extracting the text from PDF files."""
 

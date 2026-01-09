@@ -3,7 +3,7 @@ import shutil
 import sqlite3
 import pymupdf 
 from typing import List, Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Body
 from fastapi.responses import FileResponse 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -29,6 +29,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Pydantic Models ---
+class BatchDeleteRequest(BaseModel):
+    doc_ids: List[str]
+    user_id: str
 
 # --- HELPER ---
 def find_physical_file(doc_id: str):
@@ -77,7 +82,6 @@ async def get_summary(doc_id: str):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        # Fetching specific document (doc_id is unique enough, but could add user_id check if strict auth needed)
         cursor.execute("SELECT doc_id, filename, date, summary FROM primarydb WHERE doc_id = ?", (doc_id,))
         row = cursor.fetchone()
         conn.close()
@@ -133,8 +137,6 @@ async def download_file(doc_id: str):
 
 @app.get("/ask")
 async def ask_question(query: str, doc_ids: Optional[str] = None):
-    # This endpoint is specific to a document context, so user_id isn't strictly needed 
-    # if doc_ids are provided, but good practice to enforce ownership in production.
     try:
         target_ids = []
         if not doc_ids:
@@ -142,28 +144,23 @@ async def ask_question(query: str, doc_ids: Optional[str] = None):
         else:
             target_ids = doc_ids.split(",")
 
-        # FIX: Unpack the dictionary returned by rag_system.search
         rag_result = rag_system.search(query=query, allowed_doc_ids=target_ids)
         
         return {
             "query": query, 
-            "answer": rag_result["answer"],  # Extract just the text string
-            "sources": rag_result.get("sources", []) # Optional: include sources if needed
+            "answer": rag_result["answer"],
+            "sources": rag_result.get("sources", [])
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/history")
 async def get_history(user_id: str):
-    """
-    Fetches documents ONLY for the specific user_id.
-    """
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # Filter by user_id
         cursor.execute("SELECT doc_id, filename, date, summary FROM primarydb WHERE user_id = ? ORDER BY rowid DESC", (user_id,))
         rows = cursor.fetchall()
         conn.close()
@@ -174,69 +171,117 @@ async def get_history(user_id: str):
 
 @app.get("/analysis")
 async def get_analysis(user_id: str):
-    """
-    Provides dashboard stats ONLY for the specific user_id.
-    """
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
-        # 1. Count documents for this user
         cursor.execute("SELECT COUNT(*) FROM primarydb WHERE user_id = ?", (user_id,))
         total_docs = cursor.fetchone()[0]
         
-        # 2. Get time saved for this user
         cursor.execute("SELECT total_time_saved_minutes FROM user_analytics WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
         total_time_mins = row[0] if row else 0
-        
         conn.close()
         
-        # Convert minutes to hours for display
         total_time_hrs = total_time_mins / 60
-        
         return {"total_documents": total_docs, "time_saved": round(total_time_hrs, 2)}
     except Exception as e:
         return {"total_documents": 0, "time_saved": 0}
 
 @app.get("/profile-stats")
 async def get_profile_stats(user_id: str):
-    """
-    New endpoint for Profile Page to get real data.
-    """
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-
-        # Get doc count
         cursor.execute("SELECT COUNT(*) FROM primarydb WHERE user_id = ?", (user_id,))
         count = cursor.fetchone()[0]
-
-        # Get first upload date as "Member since" approximation (or today if new)
         cursor.execute("SELECT date FROM primarydb WHERE user_id = ? ORDER BY rowid ASC LIMIT 1", (user_id,))
         row = cursor.fetchone()
         member_since = row[0] if row else "New Member"
-
         conn.close()
-
         return {"doc_count": count, "member_since": member_since}
     except Exception as e:
         return {"doc_count": 0, "member_since": "Unknown"}
 
-@app.get("/search")
-async def global_search(user_id: str, query: str, top_k: int = 15):
+@app.delete("/document/{doc_id}")
+async def delete_document(doc_id: str, user_id: str = Form(...)):
     """
-    Performs RAG search restricted to the user's documents and returns sources.
+    Deletes a single document.
     """
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        cursor.execute("SELECT user_id FROM primarydb WHERE doc_id = ?", (doc_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Document not found")
         
-        # 1. Get ONLY this user's doc_ids and Filenames
+        if row[0] != user_id:
+            raise HTTPException(status_code=403, detail="Unauthorized action")
+
+        rag_system.delete_document(doc_id)
+        file_handler = FileHandler()
+        success = file_handler.deleteFile(doc_id, STORAGE_DIR)
+
+        if success:
+            return {"status": "success", "message": f"Document {doc_id} deleted"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete from storage")
+
+    except Exception as e:
+        print(f"Delete Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/delete_multiple")
+async def delete_multiple_documents(payload: BatchDeleteRequest):
+    """
+    New Endpoint: Deletes multiple documents for a specific user.
+    """
+    try:
+        user_id = payload.user_id
+        doc_ids = payload.doc_ids
+        
+        if not doc_ids:
+            return {"status": "success", "message": "No documents to delete"}
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Verify ownership for all docs first
+        placeholders = ','.join('?' * len(doc_ids))
+        cursor.execute(f"SELECT doc_id, user_id FROM primarydb WHERE doc_id IN ({placeholders})", doc_ids)
+        rows = cursor.fetchall()
+        conn.close()
+
+        valid_docs = [row[0] for row in rows if row[1] == user_id]
+        
+        if not valid_docs:
+             return {"status": "success", "message": "No valid documents found for deletion"}
+
+        file_handler = FileHandler()
+        deleted_count = 0
+
+        for doc_id in valid_docs:
+            # 1. Delete from Vector DB
+            rag_system.delete_document(doc_id)
+            # 2. Delete from Local Storage & SQLite
+            if file_handler.deleteFile(doc_id, STORAGE_DIR):
+                deleted_count += 1
+
+        return {"status": "success", "message": f"Deleted {deleted_count} documents"}
+
+    except Exception as e:
+        print(f"Batch Delete Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/search")
+async def global_search(user_id: str, query: str, top_k: int = 15):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
         cursor.execute("SELECT doc_id, filename FROM primarydb WHERE user_id = ?", (user_id,))
         rows = cursor.fetchall()
-        
-        # Create a map for quick filename lookup: {doc_id: filename}
         user_docs_map = {row[0]: row[1] for row in rows}
         conn.close()
 
@@ -244,8 +289,6 @@ async def global_search(user_id: str, query: str, top_k: int = 15):
             return {"results": []}
 
         user_doc_ids = list(user_docs_map.keys())
-        
-        # 2. Pass allowed IDs to RAG system
         rag_output = rag_system.search(query=query, allowed_doc_ids=user_doc_ids)
         
         answer = rag_output["answer"]
@@ -254,18 +297,15 @@ async def global_search(user_id: str, query: str, top_k: int = 15):
         if "No relevant documents found" in answer:
             return {"results": []}
 
-        # 3. Process sources to get unique documents (deduplicate chunks from same doc)
         unique_sources = {}
         for chunk in source_chunks:
             did = chunk.get("doc_id")
-            # Only add if we haven't seen this doc yet AND it belongs to the user
             if did and did not in unique_sources and did in user_docs_map:
                 unique_sources[did] = {
                     "doc_id": did,
                     "filename": user_docs_map[did]
                 }
         
-        # Convert dictionary values to list
         final_sources_list = list(unique_sources.values())
 
         return {
@@ -275,7 +315,7 @@ async def global_search(user_id: str, query: str, top_k: int = 15):
                     "filename": "Your Documents",
                     "score": 1.0,
                     "snippet": answer,
-                    "sources": final_sources_list  # <--- This is what full-search.html needs
+                    "sources": final_sources_list
                 }
             ]
         }
