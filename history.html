@@ -367,17 +367,19 @@
         let selectedDocIds = new Set();
         let currentUserUid = null;
 
-        // Selection UI updates
         function updateSelectionUI() {
             const hasSelection = selectedDocIds.size > 0;
             deleteSelectedBtn.disabled = !hasSelection;
             downloadSelectedBtn.disabled = !hasSelection;
 
             cancelSelectBtn.classList.toggle("hidden", !hasSelection);
-            // Optional: show count in cancel button
-            cancelSelectBtn.querySelector("span:nth-child(2)").textContent = hasSelection ? `(${selectedDocIds.size})` : "";
+            
+            // FIX: Safely check if the count span exists before writing to it
+            const countSpan = cancelSelectBtn.querySelector("span:nth-child(2)");
+            if (countSpan) {
+                countSpan.textContent = hasSelection ? `(${selectedDocIds.size})` : "";
+            }
         }
-
         function clearAllSelections() {
             selectedDocIds.clear();
             document.querySelectorAll(".history-card").forEach(card => {
