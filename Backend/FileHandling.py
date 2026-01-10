@@ -444,11 +444,3 @@ class FileHandler:
         time_saved = min(time_saved, 0.85*manual_time)
 
         return max(time_saved, 0)
-
-
-# Testing
-
-if __name__ == "__main__":
-
-    handler = FileHandler()
-    print(handler.addFiles(file=r"C:\\Users\\shrey\\Downloads\\Asana.pdf", user_id="nigga2.0"))
