@@ -294,11 +294,16 @@ class FileHandler:
             self.summary = self.compareAndSummarize(
                 docs_summaries_compare=None, doc_text="\n\n".join(self.text)
             )
+            
+            # --- FIX: Handle case where AI returns None (e.g. Safety Filters) ---
+            if self.summary is None:
+                self.summary = "Summary unavailable due to safety filters or processing error."
 
         except Exception as e:
             raise RuntimeError("Summary generation failed!") from e
 
         # Getting the estimated time saved
+        # Note: self.summary is now guaranteed to be a string
         self.time_saved_for_this_doc = self.estimatedTimeSaved(
             text_words=(len(("\n\n".join(self.text)).split())), summary_words=len(self.summary.split())
         )
@@ -394,16 +399,17 @@ class FileHandler:
 
             # generating the main summary
             summary = self.model.client.models.generate_content(
-                model="gemini-2.5-flash-lite",
+                model="gemini-2.5-flash",
                 contents=prompts.prompt_summary_new + "\n\n" + doc_text,
             )
-            return summary.text  # returning the summary text
+            # Ensure we don't return None if .text is missing
+            return summary.text if summary.text else None 
 
         else:
             """Comparison logic"""
 
             comparison = self.model.client.models.generate_content(
-                model="gemini-2.5-flash-lite",
+                model="gemini-2.5-flash",
                 contents=prompts.prompt_comparison
                 + "\n\n"
                 + "\n\n".join(docs_summaries_compare),

@@ -43,7 +43,7 @@ class FullRAGSystem:
             raise RuntimeError("GOOGLE_API_KEY (or GEMINI_API_KEY) missing in .env")
         
         self.client = genai.Client(api_key=google_api_key)
-        self.llm_model_id = "gemini-2.5-flash-lite"
+        self.llm_model_id = "gemini-2.5-flash"
         # 3. Pinecone Setup
         pinecone_key = os.getenv("PINECONE_API_KEY")
         if not pinecone_key:

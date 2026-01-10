@@ -1,12 +1,15 @@
 import os
 import shutil
 import sqlite3
-import pymupdf 
+import pymupdf
+import zipfile
+from fastapi import BackgroundTasks 
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Body
 from fastapi.responses import FileResponse 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import traceback
 
 # Import provided backend components
 from FileHandling import FileHandler
@@ -35,6 +38,10 @@ class BatchDeleteRequest(BaseModel):
     doc_ids: List[str]
     user_id: str
 
+class BatchDownloadRequest(BaseModel):
+    doc_ids: List[str]
+    user_id: str
+
 # --- HELPER ---
 def find_physical_file(doc_id: str):
     for filename in os.listdir(STORAGE_DIR):
@@ -42,19 +49,28 @@ def find_physical_file(doc_id: str):
             return os.path.join(STORAGE_DIR, filename)
     return None
 
+def cleanup_file(path: str):
+    if os.path.exists(path):
+        os.remove(path)
+
 # --- API ENDPOINTS ---
 
 @app.post("/preprocess")
 async def preprocess_and_upload(user_id: str = Form(...), file: UploadFile = File(...)):
     """
-    Uploads a file for a specific user.
+    Uploads a file for a specific user with enhanced error reporting.
     """
     os.makedirs(STORAGE_DIR, exist_ok=True)
     request_file_handler = FileHandler() 
 
     temp_path = os.path.join(STORAGE_DIR, file.filename)
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    
+    # Save temp file
+    try:
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save temporary file: {str(e)}")
     
     try:
         # Pass user_id to addFiles
@@ -72,9 +88,93 @@ async def preprocess_and_upload(user_id: str = Form(...), file: UploadFile = Fil
         rag_system.ingest_document(raw_text, doc_id)
         
         return {"doc_id": doc_id, "filename": file.filename, "status": "success"}
+
     except Exception as e:
-        if os.path.exists(temp_path): os.remove(temp_path)
-        print(f"Error in preprocess: {e}")
+        # Cleanup temp file if it exists
+        if os.path.exists(temp_path): 
+            os.remove(temp_path)
+        
+        # 1. Log the full traceback to the server console (Critical for debugging)
+        print("!! PREPROCESS ERROR TRACEBACK START !!")
+        traceback.print_exc()
+        print("!! PREPROCESS ERROR TRACEBACK END !!")
+
+        # 2. Extract specific error details for the client
+        error_msg = str(e)
+        
+        # If the error has a chained cause (e.g. RuntimeError from FileHandling), append it
+        if hasattr(e, '__cause__') and e.__cause__:
+            error_msg += f" -> Root Cause: {str(e.__cause__)}"
+
+        # 3. Return appropriate status code
+        # ValueError usually comes from FileHandling (e.g., "Unsupported pdf file!")
+        status_code = 400 if isinstance(e, ValueError) else 500
+
+        raise HTTPException(status_code=status_code, detail=error_msg)
+
+@app.post("/download_multiple")
+async def download_multiple_files(payload: BatchDownloadRequest, background_tasks: BackgroundTasks):
+    """
+    Creates a ZIP file containing the requested documents and returns it.
+    """
+    user_id = payload.user_id
+    doc_ids = payload.doc_ids
+    
+    if not doc_ids:
+        raise HTTPException(status_code=400, detail="No document IDs provided")
+
+    try:
+        # 1. Verify ownership and get filenames from DB
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Create a placeholder string for the query (e.g., "?,?,?")
+        placeholders = ','.join('?' * len(doc_ids))
+        query = f"SELECT doc_id, filename, user_id FROM primarydb WHERE doc_id IN ({placeholders})"
+        
+        cursor.execute(query, doc_ids)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Filter valid documents belonging to this user
+        valid_docs = [
+            {"doc_id": row[0], "filename": row[1]} 
+            for row in rows if row[2] == user_id
+        ]
+        
+        if not valid_docs:
+            raise HTTPException(status_code=404, detail="No valid documents found for this user.")
+
+        # 2. Create a temporary ZIP file
+        zip_filename = f"documents_export_{user_id}.zip"
+        zip_path = os.path.join(STORAGE_DIR, zip_filename)
+
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            files_added = 0
+            for doc in valid_docs:
+                physical_path = find_physical_file(doc["doc_id"])
+                
+                if physical_path and os.path.exists(physical_path):
+                    # Add file to zip (using original filename)
+                    # Handle duplicate filenames in zip by prepending doc_id if needed
+                    zipf.write(physical_path, arcname=doc["filename"])
+                    files_added += 1
+        
+        if files_added == 0:
+            raise HTTPException(status_code=404, detail="Physical files not found on server.")
+
+        # 3. Schedule cleanup of the zip file after sending
+        background_tasks.add_task(cleanup_file, zip_path)
+
+        # 4. Return the ZIP file
+        return FileResponse(
+            path=zip_path, 
+            filename=zip_filename, 
+            media_type='application/zip'
+        )
+
+    except Exception as e:
+        print(f"Batch Download Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/document/{doc_id}")
